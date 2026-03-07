@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8 Mart Özel ✨</title>
+    <style>
+        /* --- Temel Stiller & Arka Plan --- */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* Tatlı pembe geçişli arka plan */
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+            background-image: linear-gradient(120deg, #fccb90 0%, #d57eeb 100%); /* Alternatif pembe/mor */
+            background-image: linear-gradient(to top, #fbc2eb 0%, #a6c1ee 100%); /* Daha yumuşak pembe */
+            background: linear-gradient(135deg, #fff5f7 0%, #ffd1dc 100%); /* Ana Pembe Tema */
+            
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden; /* Kalpler dışarı taşmasın */
+            position: relative;
+        }
+
+        /* --- Hareketli Kalpler Animasyonu --- */
+        .hearts {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* Arka planda kalsın */
+        }
+
+        .heart {
+            position: absolute;
+            list-style: none;
+            display: block;
+            width: 20px;
+            height: 20px;
+            background-color: rgba(255, 255, 255, 0.6); /* Beyaz şeffaf */
+            bottom: -150px;
+            animation: animate 25s linear infinite;
+            border-radius: 50%; /* Yuvarlak kalpler */
+        }
+        
+        /* Kalp Şekli Verme (Opsiyonel, daha karmaşık CSS ister, şimdilik yuvarlak ikonlar) */
+        .heart::before,
+        .heart::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: inherit;
+            border-radius: 50%;
+        }
+        .heart::before { top: -10px; left: 0; }
+        .heart::after { left: 10px; top: 0; }
+        .heart { transform: rotate(-45deg); border-radius: 0; } /* Kalp şekline çevir */
+
+        /* Farklı boyut ve renklerde kalpler */
+        .heart:nth-child(1) { left: 25%; width: 30px; height: 30px; animation-delay: 0s; background-color: rgba(255, 182, 193, 0.7); } /* Pembe */
+        .heart:nth-child(2) { left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; }
+        .heart:nth-child(3) { left: 70%; width: 20px; height: 20px; animation-delay: 4s; background-color: rgba(255, 255, 255, 0.8); }
+        .heart:nth-child(4) { left: 40%; width: 40px; height: 40px; animation-delay: 0s; animation-duration: 18s; background-color: rgba(255, 192, 203, 0.6); } /* Açık Pembe */
+        .heart:nth-child(5) { left: 65%; width: 20px; height: 20px; animation-delay: 0s; }
+        .heart:nth-child(6) { left: 75%; width: 50px; height: 50px; animation-delay: 3s; background-color: rgba(255, 255, 255, 0.7); }
+        .heart:nth-child(7) { left: 35%; width: 30px; height: 30px; animation-delay: 7s; background-color: rgba(255, 182, 193, 0.8); }
+        .heart:nth-child(8) { left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s; }
+        .heart:nth-child(9) { left: 20%; width: 15px; height: 15px; animation-delay: 2s; background-color: rgba(255, 192, 203, 0.7); }
+        .heart:nth-child(10){ left: 85%; width: 40px; height: 40px; animation-delay: 0s; animation-duration: 11s; background-color: rgba(255, 255, 255, 0.9); }
+
+        @keyframes animate {
+            0%{ transform: translateY(0) rotate(0deg); opacity: 1; border-radius: 0; }
+            100%{ transform: translateY(-1000px) rotate(720deg); opacity: 0; border-radius: 50%; }
+        }
+
+        /* --- İçerik Kutusu Tasarımı --- */
+        .container {
+            background: rgba(255, 255, 255, 0.9); /* Şeffaf beyaz kutu */
+            padding: 40px;
+            border-radius: 30px;
+            box-shadow: 0 15px 35px rgba(214, 51, 132, 0.2);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            z-index: 10; /* Kalplerin önünde dursun */
+            position: relative;
+            transition: all 0.5s ease;
+        }
+
+        /* --- Giriş Ekranı --- */
+        #giris-ekrani h2 { color: #d63384; margin-bottom: 25px; font-weight: 700; }
+        input {
+            width: 100%;
+            padding: 15px;
+            margin: 12px 0;
+            border: 2px solid #ffc1e3;
+            border-radius: 15px;
+            box-sizing: border-box;
+            outline: none;
+            transition: 0.3s;
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+        input:focus { border-color: #d63384; box-shadow: 0 0 10px rgba(214, 51, 132, 0.2); }
+        button {
+            background: linear-gradient(45deg, #ff6a95, #d63384);
+            color: white;
+            border: none;
+            padding: 18px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(214, 51, 132, 0.3);
+            transition: 0.3s;
+        }
+        button:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(214, 51, 132, 0.4); }
+
+        /* --- Kutlama Ekranı (Gizli) --- */
+        #kutlama-ekrani { display: none; }
+        .heart-icon { font-size: 70px; margin-bottom: 15px; color: #d63384; display: block; animation: beat 1s infinite alternate; }
+        @keyframes beat { to { transform: scale(1.1); } }
+        
+        .mesaj-kutusu { font-size: 28px; color: #333; font-weight: 800; line-height: 1.3; }
+        .kisi-adi { color: #d63384; display: block; margin-bottom: 10px; }
+        
+        .ozel-not { margin-top: 30px; font-style: italic; color: #555; font-size: 20px; padding: 15px; background: #fff0f5; border-radius: 10px; border-left: 5px solid #d63384; }
+    </style>
+</head>
+<body>
+
+    <ul class="hearts">
+        <li class="heart"></li><li class="heart"></li><li class="heart"></li><li class="heart"></li><li class="heart"></li>
+        <li class="heart"></li><li class="heart"></li><li class="heart"></li><li class="heart"></li><li class="heart"></li>
+    </ul>
+
+    <div id="giris-ekrani" class="container">
+        <h2>8 Mart Özel ✨</h2>
+        <input type="text" id="isim" placeholder="İsminiz: Örn. Aysel">
+        <input type="text" id="mesaj" placeholder="Mesajınız: Örn. Seni çok seviyorum">
+        <button onclick="sayfayiAc()">Kutlamayı Gör 👉</button>
+    </div>
+
+    <div id="kutlama-ekrani" class="container">
+        <span class="heart-icon">🤍</span>
+        <div class="mesaj-kutusu">
+            Canım <span id="kisi-ismi" class="kisi-adi"></span>
+            8 Mart Dünya Kadınlar Günün Kutlu Olsun!
+        </div>
+        <div id="kisi-mesaji" class="ozel-not"></div>
+    </div>
+
+    <script>
+        function sayfayiAc() {
+            var ad = document.getElementById('isim').value;
+            var not = document.getElementById('mesaj').value;
+
+            if(ad == "") {
+                alert("Lütfen bir isim gir kanka!");
+                return;
+            }
+
+            // Giriş formunu gizle
+            document.getElementById('giris-ekrani').style.display = 'none';
+            
+            // Kutlama ekranını göster
+            document.getElementById('kutlama-ekrani').style.display = 'block';
+
+            // Bilgileri ekrana yaz
+            document.getElementById('kisi-ismi').innerText = ad;
+            document.getElementById('kisi-mesaji').innerText = not;
+        }
+    </script>
+
+</body>
+</html>
