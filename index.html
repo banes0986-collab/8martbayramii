@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8 Mart Dünya Kadınlar Günü</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #fff5f7 0%, #ffd1dc 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2.5rem;
+            border-radius: 30px;
+            box-shadow: 0 15px 35px rgba(214, 51, 132, 0.2);
+            text-align: center;
+            width: 380px;
+            transition: all 0.5s ease;
+        }
+        h2 { color: #d63384; margin-bottom: 20px; }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ffc1e3;
+            border-radius: 15px;
+            box-sizing: border-box;
+            outline: none;
+            transition: 0.3s;
+        }
+        input:focus, textarea:focus { border-color: #d63384; }
+        button {
+            background: linear-gradient(45deg, #ff6a95, #d63384);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(214, 51, 132, 0.3);
+            transition: 0.3s;
+        }
+        button:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(214, 51, 132, 0.4); }
+        #celebration { display: none; }
+        .heart-icon { font-size: 60px; margin-bottom: 10px; display: block; }
+        .user-message { 
+            font-size: 1.1rem; 
+            color: #555; 
+            margin-top: 20px; 
+            padding: 15px;
+            border-left: 4px solid #d63384;
+            background: #fff0f5;
+            border-radius: 0 10px 10px 0;
+        }
+        .footer-text { font-size: 1.4rem; color: #d63384; font-weight: 800; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+    <div id="login-form" class="container">
+        <h2>8 Mart Özel ✨</h2>
+        <input type="text" id="userName" placeholder="İsim (Örn: Aysel)">
+        <textarea id="userNote" placeholder="Mesajın (Örn: Seni çok seviyorum)" rows="3"></textarea>
+        <button onclick="kutlamayiGoster()">Mesajı Gönder 💌</button>
+    </div>
+
+    <div id="celebration" class="container">
+        <span class="heart-icon">🤍</span>
+        <h2 id="displayName"></h2>
+        <p class="footer-text">8 Mart Dünya Kadınlar Günün Kutlu Olsun!</p>
+        <div id="displayMessage" class="user-message"></div>
+    </div>
+
+    <script>
+        function kutlamayiGoster() {
+            const name = document.getElementById('userName').value;
+            const message = document.getElementById('userNote').value;
+
+            if (!name) {
+                alert("İsim yazmayı unuttun knk!");
+                return;
+            }
+
+            // Formu gizle, kutlamayı aç
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('celebration').style.display = 'block';
+
+            // Bilgileri yerleştir
+            document.getElementById('displayName').innerText = "Canım " + name;
+            document.getElementById('displayMessage').innerText = message;
+
+            // Konfeti/Çiçek Patlatma Efekti
+            var duration = 5 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+            function randomInRange(min, max) {
+              return Math.random() * (max - min) + min;
+            }
+
+            var interval = setInterval(function() {
+              var timeLeft = animationEnd - Date.now();
+
+              if (timeLeft <= 0) {
+                return clearInterval(interval);
+              }
+
+              var particleCount = 50 * (timeLeft / duration);
+              confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+              confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+    </script>
+</body>
+</html>
