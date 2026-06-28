@@ -1,0 +1,27 @@
+Settings:
+  async-processing: true
+  geyser-support: false
+  send-alerts-to-operators: true
+  kick-on-max-vl: true
+
+punishments:
+  commands:
+    - "kick %player% &c[SalxAET] Sunucudan Uzaklastirildiniz! (Unfair Advantage)"
+
+alerts:
+  console: true
+  discord: false
+  permission: "salxaet.alerts"
+  cooldown-ms: 150
+
+checks:
+  combat:
+    enabled: true
+    killaura:
+      enabled: true
+      max-vl: 5
+    reach:
+      enabled: true
+      max-vl: 3
+      max-distance: 4.5
+      
