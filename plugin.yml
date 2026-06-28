@@ -1,0 +1,19 @@
+name: lAnticheat
+version: '1.0-SNAPSHOT'
+main: com.example.lanticheat.LAntianticheat
+api-version: '1.16'
+author: triggerbabaa
+description: Gelişmiş anti cheat plugini.
+
+commands:
+  lanticheat:
+    usage: /<command> reload
+    permission: lanticheat.reload
+
+permissions:
+  lanticheat.alert:
+    description: Gelen anti cheat loglarını görme yetkisi.
+    default: op
+  lanticheat.reload:
+    description: Configi yeniden yükleme yetkisi.
+    default: op
