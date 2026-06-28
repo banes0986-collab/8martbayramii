@@ -1,0 +1,6 @@
+Messages:
+  prefix: "&e[&bSalxAET&e] "
+  no-permission: "&cBu komutu kullanmak için yetkiniz yok!"
+  reload-success: "&aKonfigürasyon ve mesaj dosyaları başarıyla yenilendi!"
+  alert-format: "&c%player% &7isimli oyuncu hile şüphesi taşıyor! &8(&e%type% &7- Mesafe: &b%distance%&8)"
+  
