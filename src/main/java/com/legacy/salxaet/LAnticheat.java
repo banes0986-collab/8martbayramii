@@ -6,7 +6,6 @@ import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
-import com.comphenix.protocol.wrappers.EnumWrappers;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -25,11 +24,9 @@ public class LAnticheat extends JavaPlugin {
     private ProtocolManager protocolManager;
     private boolean isAnticheatEnabled = true;
 
-    // Mesaj dosyası
     private File messagesFile;
     public FileConfiguration messagesConfig;
 
-    // Prefix & mesajlar (config'den yüklenir)
     public String PREFIX;
     public String ALERT_FORMAT;
     public String MSG_NO_PERMISSION;
@@ -47,7 +44,6 @@ public class LAnticheat extends JavaPlugin {
         createMessagesConfig();
         loadMessages();
 
-        // ProtocolLib bağlantısı
         if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
             protocolManager = ProtocolLibrary.getProtocolManager();
             registerPacketChecks();
@@ -55,31 +51,25 @@ public class LAnticheat extends JavaPlugin {
             getLogger().severe("ProtocolLib bulunamadi! Paket tabanli kontroller devre disi.");
         }
 
-        // Event listeners
         getServer().getPluginManager().registerEvents(new MovementListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
 
-        // Komut
         getCommand("salxaet").setExecutor(new AnticheatCommand(this));
 
-        // Violation azaltma görevi (her 10 saniyede bir)
+        // Her 10 saniyede ihlal azalt
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (PlayerData data : playerDataMap.values()) {
                 data.decreaseFlag();
             }
         }, 200L, 200L);
 
-        getLogger().info("========================================");
-        getLogger().info(" SalxAET v2.0 - Aktif!");
-        getLogger().info("========================================");
+        getLogger().info("SalxAET v2.0 aktif!");
     }
 
     @Override
     public void onDisable() {
         playerDataMap.clear();
     }
-
-    // ─── Mesaj dosyası yönetimi ───────────────────────────────────────────────
 
     private void createMessagesConfig() {
         messagesFile = new File(getDataFolder(), "messages.yml");
@@ -98,80 +88,73 @@ public class LAnticheat extends JavaPlugin {
 
     private void loadMessages() {
         FileConfiguration cfg = messagesConfig;
-        PREFIX        = color(cfg.getString("prefix", "&8[&dSalxAET&8] "));
-        ALERT_FORMAT  = color(cfg.getString("alert-format",
-                "&f%player% &7adlı oyuncu &e%check% &7şüphesi fırlattı! &8(%details%)"));
-        MSG_NO_PERMISSION   = color(cfg.getString("commands.no-permission",   "&cYetkiniz yok!"));
-        MSG_ALREADY_ACTIVE  = color(cfg.getString("commands.already-active",  "&eSalxAET zaten aktif!"));
-        MSG_ACTIVATED       = color(cfg.getString("commands.activated",       "&aHile koruması devreye alındı!"));
-        MSG_ALREADY_DISABLED= color(cfg.getString("commands.already-disabled","&eSalxAET zaten devre dışı!"));
-        MSG_DISABLED        = color(cfg.getString("commands.disabled",        "&cHile koruması kapatıldı!"));
-        MSG_RELOADED        = color(cfg.getString("commands.reloaded",        "&aAyarlar yenilendi!"));
-        KICK_REASON         = color(cfg.getString("kick.reason",
-                "&c&l[SalxAET]\n\n&7Sunucudan uzaklaştırıldınız!\n&bSebep: &eHile Kullanımı"));
+        PREFIX             = color(cfg.getString("prefix", "&8[&dSalxAET&8] "));
+        ALERT_FORMAT       = color(cfg.getString("alert-format", "&f%player% &7-> &e%check% &8| &7%details%"));
+        MSG_NO_PERMISSION  = color(cfg.getString("commands.no-permission",    "&cYetkiniz yok!"));
+        MSG_ALREADY_ACTIVE = color(cfg.getString("commands.already-active",   "&eSalxAET zaten aktif!"));
+        MSG_ACTIVATED      = color(cfg.getString("commands.activated",        "&aHile koruması devreye alındı!"));
+        MSG_ALREADY_DISABLED=color(cfg.getString("commands.already-disabled", "&eSalxAET zaten devre dışı!"));
+        MSG_DISABLED       = color(cfg.getString("commands.disabled",         "&cHile koruması kapatıldı!"));
+        MSG_RELOADED       = color(cfg.getString("commands.reloaded",         "&aAyarlar yenilendi!"));
+        KICK_REASON        = color(cfg.getString("kick.reason",
+                "&c&l[SalxAET]\n\n&7Hile tespit edildi!\n&bSebep: &eHile Kullanımı"));
     }
-
-    // ─── ProtocolLib paket dinleyicileri ─────────────────────────────────────
 
     private void registerPacketChecks() {
 
-        // --- Paket 1: Elytra boost (FIREWORK_ROCKET_SHOOT) ─────────────────
+        // Firework boost takibi
         protocolManager.addPacketListener(new PacketAdapter(
-                this, ListenerPriority.NORMAL,
-                PacketType.Play.Client.USE_ITEM) {
+                this, ListenerPriority.NORMAL, PacketType.Play.Client.USE_ITEM) {
             @Override
             public void onPacketReceiving(PacketEvent event) {
                 if (!isAnticheatEnabled) return;
                 Player player = event.getPlayer();
                 PlayerData data = playerDataMap.get(player.getUniqueId());
                 if (data == null) return;
-
                 try {
                     org.bukkit.inventory.ItemStack item = player.getInventory().getItemInMainHand();
-                    if (item.getType() == org.bukkit.Material.FIREWORK_ROCKET) {
+                    if (item != null && item.getType() == org.bukkit.Material.FIREWORK_ROCKET) {
                         data.lastFireworkBoost = System.currentTimeMillis();
                     }
                 } catch (Exception ignored) {}
             }
         });
 
-        // --- Paket 2: Saldırı (USE_ENTITY) → KillAura CPS + Reach ─────────
+        // USE_ENTITY → KillAura CPS + Reach + Hitbox
         protocolManager.addPacketListener(new PacketAdapter(
-                this, ListenerPriority.NORMAL,
-                PacketType.Play.Client.USE_ENTITY) {
+                this, ListenerPriority.NORMAL, PacketType.Play.Client.USE_ENTITY) {
             @Override
             public void onPacketReceiving(PacketEvent event) {
                 if (!isAnticheatEnabled) return;
                 Player player = event.getPlayer();
                 PlayerData data = playerDataMap.get(player.getUniqueId());
                 if (data == null) return;
+                if (player.hasPermission("salxaet.bypass") || player.isOp()) return;
 
                 try {
-                    // Sadece ATTACK paketlerini işle
-                    EnumWrappers.EntityUseAction action = event.getPacket()
-                            .getEnumModifier(EnumWrappers.EntityUseAction.class, 1).read(0);
-                    if (action != EnumWrappers.EntityUseAction.ATTACK) return;
+                    // 1.21'de action integer olarak gelir: 1 = ATTACK
+                    int actionId = event.getPacket().getIntegers().read(1);
+                    if (actionId != 1) return; // Sadece ATTACK
 
-                    // ── KillAura CPS kontrolü ────────────────────────────
+                    // ── KillAura CPS ──────────────────────────────────────
                     if (getConfig().getBoolean("checks.killaura.enabled", true)) {
                         long now = System.currentTimeMillis();
                         long delay = now - data.getLastAttackTime();
                         int minDelay = getConfig().getInt("checks.killaura.min-ms-delay", 40);
 
-                        if (delay < minDelay) {
-                            triggerAlert(player, "KillAura (CPS)", "delay=" + delay + "ms");
+                        if (data.getLastAttackTime() != 0 && delay < minDelay) {
+                            triggerAlert(player, "KillAura", "CPS delay=" + delay + "ms < " + minDelay + "ms");
                         }
                         data.setLastAttackTime(now);
                     }
 
-                    // ── Reach kontrolü ───────────────────────────────────
+                    // ── Reach ─────────────────────────────────────────────
                     if (getConfig().getBoolean("checks.reach.enabled", true)) {
                         Entity target = event.getPacket()
                                 .getEntityModifier(player.getWorld()).read(0);
                         if (target != null) {
                             double dist = player.getLocation().distance(target.getLocation());
                             double maxDist = getConfig().getDouble("checks.reach.max-distance", 3.5);
-                            // Elytra ile uçanlar için tolerans
                             if (player.isGliding()) maxDist += 1.5;
 
                             if (dist > maxDist) {
@@ -182,7 +165,7 @@ public class LAnticheat extends JavaPlugin {
                         }
                     }
 
-                    // ── Hitbox açı kontrolü ──────────────────────────────
+                    // ── Hitbox açı ────────────────────────────────────────
                     if (getConfig().getBoolean("checks.hitbox.enabled", true)) {
                         Entity target = event.getPacket()
                                 .getEntityModifier(player.getWorld()).read(0);
@@ -192,16 +175,18 @@ public class LAnticheat extends JavaPlugin {
                             if (angle > maxAngle) {
                                 event.setCancelled(true);
                                 triggerAlert(player, "Hitbox",
-                                        String.format("açı=%.1f°", angle));
+                                        String.format("aci=%.1f derece", angle));
                             }
                         }
                     }
 
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    // Paket parse hatasi - sessizce gec
+                }
             }
         });
 
-        // --- Paket 3: Rotasyon (LOOK / POSITION_LOOK) → KillAura Rotation ──
+        // Rotasyon paketi → KillAura aimbot tespiti
         protocolManager.addPacketListener(new PacketAdapter(
                 this, ListenerPriority.NORMAL,
                 PacketType.Play.Client.LOOK,
@@ -214,21 +199,19 @@ public class LAnticheat extends JavaPlugin {
                 Player player = event.getPlayer();
                 PlayerData data = playerDataMap.get(player.getUniqueId());
                 if (data == null) return;
+                if (player.hasPermission("salxaet.bypass") || player.isOp()) return;
 
                 try {
                     float yaw   = event.getPacket().getFloat().read(0);
                     float pitch = event.getPacket().getFloat().read(1);
 
-                    float deltaYaw   = Math.abs(yaw   - data.lastYaw);
-                    float deltaPitch = Math.abs(pitch - data.lastPitch);
+                    float deltaYaw = Math.abs(yaw - data.lastYaw);
 
-                    // Ani tam sayı dönüşü → bot/aimbot işareti
-                    if (deltaYaw > 0.01f && deltaYaw < 180f) {
-                        boolean yawExact   = (yaw   % 1.0f == 0.0f);
-                        boolean pitchExact = (pitch % 1.0f == 0.0f);
-                        if (yawExact && pitchExact && deltaYaw > 45f) {
-                            triggerAlert(player, "KillAura (Rotation)",
-                                    String.format("Δyaw=%.1f Δpitch=%.1f", deltaYaw, deltaPitch));
+                    // Ani büyük tam sayı dönüş → aimbot işareti
+                    if (deltaYaw > 45f && deltaYaw < 180f) {
+                        if (yaw % 1.0f == 0.0f && pitch % 1.0f == 0.0f) {
+                            triggerAlert(player, "KillAura",
+                                    String.format("Rotation snap: yaw=%.1f pitch=%.1f", yaw, pitch));
                         }
                     }
 
@@ -239,30 +222,19 @@ public class LAnticheat extends JavaPlugin {
         });
     }
 
-    // ─── Yardımcı metodlar ───────────────────────────────────────────────────
-
-    /**
-     * İki entity arasındaki yatay görüş açısını hesaplar.
-     */
     private double getAngleBetween(Player player, Entity target) {
-        org.bukkit.Location playerLoc = player.getEyeLocation();
-        org.bukkit.Location targetLoc = target.getLocation().add(0, target.getHeight() / 2, 0);
+        org.bukkit.Location pLoc = player.getEyeLocation();
+        org.bukkit.Location tLoc = target.getLocation().add(0, target.getHeight() / 2.0, 0);
 
-        double dx = targetLoc.getX() - playerLoc.getX();
-        double dz = targetLoc.getZ() - playerLoc.getZ();
+        double dx = tLoc.getX() - pLoc.getX();
+        double dz = tLoc.getZ() - pLoc.getZ();
 
         double targetYaw = Math.toDegrees(Math.atan2(-dx, dz));
-        double playerYaw = playerLoc.getYaw();
-
-        double delta = Math.abs(targetYaw - playerYaw) % 360;
+        double delta = Math.abs(targetYaw - pLoc.getYaw()) % 360;
         if (delta > 180) delta = 360 - delta;
         return delta;
     }
 
-    /**
-     * Uyarı gönderir ve ihlal sayısını artırır.
-     * Belirli eşiğe ulaşırsa oyuncuyu atar.
-     */
     public void triggerAlert(Player player, String checkName, String details) {
         PlayerData data = playerDataMap.get(player.getUniqueId());
         if (data == null) return;
@@ -270,11 +242,13 @@ public class LAnticheat extends JavaPlugin {
         data.addFlag();
         data.incrementTotalLogs();
 
+        String safeDetails = (details == null || details.isEmpty()) ? "tespit edildi" : details;
+
         if (getConfig().getBoolean("settings.send-alerts", true)) {
             String msg = PREFIX + ALERT_FORMAT
                     .replace("%player%", player.getName())
                     .replace("%check%", checkName)
-                    .replace("%details%", details);
+                    .replace("%details%", safeDetails);
 
             for (Player op : Bukkit.getOnlinePlayers()) {
                 if (op.hasPermission("salxaet.admin")) {
@@ -284,18 +258,16 @@ public class LAnticheat extends JavaPlugin {
         }
 
         if (getConfig().getBoolean("settings.log-to-console", true)) {
-            getLogger().info("[UYARI] " + player.getName() + " -> " + checkName + " (" + details + ")");
+            getLogger().info("[UYARI] " + player.getName()
+                    + " -> " + checkName + " (" + safeDetails + ")");
         }
 
-        // 15 toplam ihlalde at
         if (data.getTotalLogs() >= 15) {
             final String reason = KICK_REASON;
             Bukkit.getScheduler().runTask(this, () -> player.kickPlayer(reason));
             data.resetTotalLogs();
         }
     }
-
-    // ─── Getter / setter ─────────────────────────────────────────────────────
 
     public boolean isAnticheatEnabled() { return isAnticheatEnabled; }
     public void setAnticheatEnabled(boolean val) { isAnticheatEnabled = val; }
@@ -304,21 +276,19 @@ public class LAnticheat extends JavaPlugin {
         return msg == null ? "" : org.bukkit.ChatColor.translateAlternateColorCodes('&', msg);
     }
 
-    // ─── İç sınıf: PlayerData ────────────────────────────────────────────────
+    // ── PlayerData iç sınıfı ─────────────────────────────────────────────────
 
     public static class PlayerData {
         private final Player player;
         private int violationFlags = 0;
-        private int totalLogs      = 0;
-        private long lastAttackTime  = 0L;
+        private int totalLogs = 0;
+        private long lastAttackTime = 0L;
         public  long lastFireworkBoost = 0L;
-        public  float lastYaw   = 0f;
+        public  float lastYaw = 0f;
         public  float lastPitch = 0f;
-
-        // Hareket kontrolü için
-        public org.bukkit.Location lastLocation = null;
-        public long lastMoveTime = 0L;
-        public int airTicks = 0;
+        public  org.bukkit.Location lastLocation = null;
+        public  long lastMoveTime = 0L;
+        public  int airTicks = 0;
 
         public PlayerData(Player player) { this.player = player; }
 
@@ -328,11 +298,11 @@ public class LAnticheat extends JavaPlugin {
         public void decreaseFlag() { if (violationFlags > 0) violationFlags--; }
         public void resetFlags()   { violationFlags = 0; }
 
-        public int  getTotalLogs()      { return totalLogs; }
-        public void incrementTotalLogs(){ totalLogs++; }
-        public void resetTotalLogs()    { totalLogs = 0; }
+        public int  getTotalLogs()       { return totalLogs; }
+        public void incrementTotalLogs() { totalLogs++; }
+        public void resetTotalLogs()     { totalLogs = 0; }
 
-        public long getLastAttackTime()       { return lastAttackTime; }
-        public void setLastAttackTime(long t) { lastAttackTime = t; }
+        public long getLastAttackTime()        { return lastAttackTime; }
+        public void setLastAttackTime(long t)  { lastAttackTime = t; }
     }
 }
