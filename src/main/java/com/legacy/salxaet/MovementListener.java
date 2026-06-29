@@ -26,10 +26,7 @@ public class MovementListener implements Listener {
         Player player = event.getPlayer();
         LAnticheat.PlayerData data = plugin.playerDataMap.get(player.getUniqueId());
         if (data == null) return;
-
-        // Yönetici / uçuş izni olanları atla
-        if (player.hasPermission("salxaet.bypass")) return;
-        if (player.isOp()) return;
+        if (player.hasPermission("salxaet.bypass") || player.isOp()) return;
 
         Location from = event.getFrom();
         Location to   = event.getTo();
@@ -42,7 +39,7 @@ public class MovementListener implements Listener {
 
         long now = System.currentTimeMillis();
         long timeDelta = (data.lastMoveTime == 0) ? 50 : (now - data.lastMoveTime);
-        if (timeDelta == 0) timeDelta = 1;
+        if (timeDelta <= 0) timeDelta = 1;
         data.lastMoveTime = now;
 
         double dx = to.getX() - from.getX();
@@ -50,32 +47,28 @@ public class MovementListener implements Listener {
         double dz = to.getZ() - from.getZ();
         double horizontalDist = Math.sqrt(dx * dx + dz * dz);
 
-        // ── Hız toleransları hesapla ──────────────────────────────────────────
+        // Hız çarpanı hesapla
         double speedMultiplier = 1.0;
         if (player.hasPotionEffect(PotionEffectType.SPEED)) {
             int amp = player.getPotionEffect(PotionEffectType.SPEED).getAmplifier();
             speedMultiplier += 0.2 * (amp + 1);
         }
-        boolean onIce = isOnIce(player);
-        if (onIce) speedMultiplier += 0.5;
+        if (isOnIce(player)) speedMultiplier += 0.5;
 
-        // ── 1. Speed kontrolü ─────────────────────────────────────────────────
+        // ── 1. Speed ─────────────────────────────────────────────────────────
         if (plugin.getConfig().getBoolean("checks.speed.enabled", true)
                 && !player.isFlying()
                 && !player.isGliding()
                 && !player.isInsideVehicle()) {
 
-            double threshold = plugin.getConfig().getDouble("checks.speed.threshold", 0.96);
-            double maxSpeed  = threshold * speedMultiplier;
-
-            // Tik başına normalize et (sunucu gecikmesi toleransı)
+            double threshold   = plugin.getConfig().getDouble("checks.speed.threshold", 0.96);
+            double maxSpeed    = threshold * speedMultiplier;
             double normalizedSpeed = horizontalDist / (timeDelta / 50.0);
 
             if (normalizedSpeed > maxSpeed + 0.15) {
                 int maxViol = plugin.getConfig().getInt("checks.speed.max-violations", 8);
                 data.addFlag();
                 if (data.getFlags() >= maxViol) {
-                    // Rubber-band: eski konuma geri çek
                     if (plugin.getConfig().getBoolean("checks.speed.rubberband", true)) {
                         event.setTo(from.clone());
                     }
@@ -87,22 +80,19 @@ public class MovementListener implements Listener {
             }
         }
 
-        // ── 2. Fly kontrolü ───────────────────────────────────────────────────
+        // ── 2. Fly ───────────────────────────────────────────────────────────
         if (plugin.getConfig().getBoolean("checks.fly.enabled", true)
                 && !player.getAllowFlight()
                 && !player.isGliding()
                 && !player.isInsideVehicle()
                 && !isNearClimbable(player)) {
 
-            boolean onGround = player.isOnGround();
-
-            if (!onGround && dy > 0.05) {
-                // Zıplama potion kontrolü
+            if (!player.isOnGround() && dy > 0.05) {
                 boolean hasJumpBoost = player.hasPotionEffect(PotionEffectType.JUMP_BOOST);
                 if (!hasJumpBoost) {
                     data.airTicks++;
-                    if (data.airTicks > 10) { // ~0.5 saniye havada
-                        int maxViol = plugin.getConfig().getInt("checks.fly.max-violations", 5);
+                    int maxViol = plugin.getConfig().getInt("checks.fly.max-violations", 5);
+                    if (data.airTicks > 10) {
                         data.addFlag();
                         if (data.getFlags() >= maxViol) {
                             if (plugin.getConfig().getBoolean("checks.fly.rubberband", true)) {
@@ -118,43 +108,46 @@ public class MovementListener implements Listener {
             }
         }
 
-        // ── 3. NoWeb (ağ içinde hareket) ─────────────────────────────────────
+        // ── 3. NoWeb ─────────────────────────────────────────────────────────
         if (plugin.getConfig().getBoolean("checks.noweb.enabled", true)) {
             if (isInsideWebBlock(player) && horizontalDist > 0.12) {
-                // Elytra boost yakınsa atla
                 long boostDelta = now - data.lastFireworkBoost;
                 if (boostDelta > 3000) {
                     event.setCancelled(true);
                     plugin.triggerAlert(player, "NoWeb",
-                            String.format("%.3f > 0.12 b/t (ağ içi)", horizontalDist));
+                            String.format("hiz=%.3f (max 0.12)", horizontalDist));
                 }
             }
         }
 
-        // ── 4. AntiWall (duvar arkası hareket) ────────────────────────────────
+        // ── 4. AntiWall ──────────────────────────────────────────────────────
         if (plugin.getConfig().getBoolean("checks.antiwall.enabled", true)) {
-            if (data.lastLocation != null) {
-                if (isTeleportThroughWall(data.lastLocation, to)) {
-                    event.setCancelled(true);
-                    plugin.triggerAlert(player, "AntiWall",
-                            "Katı bloktan geçiş tespit edildi");
+            if (data.lastLocation != null
+                    && data.lastLocation.getWorld() != null
+                    && data.lastLocation.getWorld().equals(to.getWorld())) {
+
+                double moveDist = data.lastLocation.distance(to);
+                if (moveDist > 0.3 && moveDist < 5.0) {
+                    String wallResult = checkWallPass(data.lastLocation, to);
+                    if (wallResult != null) {
+                        event.setCancelled(true);
+                        plugin.triggerAlert(player, "AntiWall", wallResult);
+                    }
                 }
             }
         }
 
-        // ── 5. Elytra hız kontrolü ────────────────────────────────────────────
+        // ── 5. Elytra hız ────────────────────────────────────────────────────
         if (plugin.getConfig().getBoolean("checks.elytra.enabled", true)
                 && player.isGliding()) {
 
             long boostDelta = now - data.lastFireworkBoost;
-            boolean boosted = boostDelta < 3000; // Boost 3 saniye boyunca tolerans
-
-            if (!boosted) {
+            if (boostDelta > 3000) {
                 double totalSpeed = Math.sqrt(dx * dx + dy * dy + dz * dz);
                 double maxElytra  = plugin.getConfig().getDouble("checks.elytra.max-speed", 2.2);
                 if (totalSpeed > maxElytra) {
-                    plugin.triggerAlert(player, "Elytra Speed",
-                            String.format("%.2f > %.2f b/t", totalSpeed, maxElytra));
+                    plugin.triggerAlert(player, "Elytra",
+                            String.format("hiz=%.2f > %.2f", totalSpeed, maxElytra));
                 }
             }
         }
@@ -166,65 +159,75 @@ public class MovementListener implements Listener {
 
     private boolean isOnIce(Player player) {
         Block below = player.getLocation().subtract(0, 0.1, 0).getBlock();
-        Material type = below.getType();
-        return type == Material.ICE || type == Material.PACKED_ICE || type == Material.BLUE_ICE;
+        Material t = below.getType();
+        return t == Material.ICE || t == Material.PACKED_ICE || t == Material.BLUE_ICE;
     }
 
     private boolean isInsideWebBlock(Player player) {
-        Block block = player.getLocation().getBlock();
-        return block.getType() == Material.COBWEB;
+        return player.getLocation().getBlock().getType() == Material.COBWEB;
     }
 
     private boolean isNearClimbable(Player player) {
-        Block block = player.getLocation().getBlock();
-        Material type = block.getType();
-        return type == Material.LADDER || type == Material.VINE
-                || type == Material.SCAFFOLDING || type == Material.WEEPING_VINES
-                || type == Material.TWISTING_VINES || type == Material.CAVE_VINES;
+        Material t = player.getLocation().getBlock().getType();
+        return t == Material.LADDER || t == Material.VINE
+                || t == Material.SCAFFOLDING || t == Material.WEEPING_VINES
+                || t == Material.TWISTING_VINES || t == Material.CAVE_VINES;
     }
 
     /**
-     * İki nokta arasındaki çizgide katı bir blok olup olmadığını kontrol eder.
-     * AntiWall'ın temelidir.
+     * İki nokta arasında katı blok geçişi var mı?
+     * Varsa blok adını döndürür, yoksa null döner.
      */
-    private boolean isTeleportThroughWall(Location from, Location to) {
-        if (from.getWorld() == null || !from.getWorld().equals(to.getWorld())) return false;
+    private String checkWallPass(Location from, Location to) {
+        if (from.getWorld() == null) return null;
 
         double dist = from.distance(to);
-        // Çok kısa mesafeler için kontrol yapma (normal hareket)
-        if (dist < 0.5 || dist > 5.0) return false;
+        int steps = (int) Math.ceil(dist / 0.4);
+        if (steps < 2) return null;
 
-        // Çizgi boyunca örnekleme
-        int steps = (int) Math.ceil(dist / 0.5);
-        Vector direction = to.toVector().subtract(from.toVector()).normalize();
+        double dx = (to.getX() - from.getX()) / steps;
+        double dy = (to.getY() - from.getY()) / steps;
+        double dz = (to.getZ() - from.getZ()) / steps;
 
         int solidCount = 0;
+        String lastSolid = "";
+
         for (int i = 1; i < steps; i++) {
-            double t = (double) i / steps;
-            Location sample = from.clone().add(
-                    direction.getX() * dist * t,
-                    direction.getY() * dist * t,
-                    direction.getZ() * dist * t
-            );
+            Location sample = from.clone().add(dx * i, dy * i, dz * i);
             Block block = sample.getBlock();
-            if (block.getType().isSolid() && !isPassableForPlayer(block.getType())) {
+            Material mat = block.getType();
+
+            if (mat.isSolid() && !isPassable(mat)) {
                 solidCount++;
-                if (solidCount >= 2) return true; // En az 2 solid blok → kesin duvar
+                lastSolid = mat.name();
+                if (solidCount >= 2) {
+                    return "blok=" + lastSolid;
+                }
             }
         }
-        return false;
+        return null;
     }
 
-    /**
-     * Oyuncunun içinden geçebileceği "solid" blok istisnalarını tanımlar.
-     */
-    private boolean isPassableForPlayer(Material type) {
-        return type == Material.SHORT_GRASS || type == Material.TALL_GRASS
-                || type == Material.FERN || type == Material.LARGE_FERN
-                || type == Material.DEAD_BUSH || type == Material.SNOW
-                || type == Material.SUGAR_CANE || type == Material.BAMBOO
-                || type == Material.VINE || type == Material.LADDER
-                || type == Material.COBWEB || type == Material.WATER
-                || type == Material.LAVA;
+    private boolean isPassable(Material type) {
+        switch (type) {
+            case SHORT_GRASS:
+            case TALL_GRASS:
+            case FERN:
+            case LARGE_FERN:
+            case DEAD_BUSH:
+            case SNOW:
+            case SUGAR_CANE:
+            case BAMBOO:
+            case VINE:
+            case LADDER:
+            case COBWEB:
+            case WATER:
+            case LAVA:
+            case AIR:
+                return true;
+            default:
+                return false;
+        }
     }
-}
+                }
+    
