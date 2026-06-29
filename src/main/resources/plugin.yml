@@ -1,6 +1,6 @@
 name: SalxAET
 version: 1.0-SNAPSHOT
-main: com.legacy.salxaet.src.main.java.com.legacy.salxaet.LAnticheat
+main: com.legacy.salxaet.LAnticheat
 api-version: '1.21'
 author: LegacyNetwork
 description: LegacyNetwork Ozel Gelismis AntiCheat Eklentisi
@@ -11,3 +11,4 @@ commands:
     description: SalxAET ana komutu.
     permission: salxaet.admin
     usage: /<command>
+    
