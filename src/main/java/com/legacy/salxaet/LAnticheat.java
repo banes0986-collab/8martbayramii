@@ -1,6 +1,7 @@
 package com.legacy.salxaet;
 
 import com.legacy.salxaet.data.PlayerData;
+import com.legacy.salxaet.checks.*;
 import com.legacy.salxaet.checks.killaura.*;
 import com.legacy.salxaet.checks.movement.*;
 
@@ -38,19 +39,23 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         saveDefaultConfig();
         createMessagesConfig();
         
-        // MODÜLER KONTROLLERİ KAYDETME (Ayrı Class'lar Burada Tetiklenir)
+        // Tüm Modülleri Sisteme Kaydetme
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(new KillAuraA(), this);
         getServer().getPluginManager().registerEvents(new KillAuraB(), this);
         getServer().getPluginManager().registerEvents(new KillAuraC(), this);
         getServer().getPluginManager().registerEvents(new KillAuraD(), this);
+        getServer().getPluginManager().registerEvents(new KillAuraF(), this);
+        getServer().getPluginManager().registerEvents(new KillAuraG(), this);
+        getServer().getPluginManager().registerEvents(new RotationCheck(), this);
+        getServer().getPluginManager().registerEvents(new AutoClickCheck(), this);
         getServer().getPluginManager().registerEvents(new SpeedCheck(), this);
         getServer().getPluginManager().registerEvents(new FlyCheck(), this);
 
         getCommand("salxaet").setExecutor(this);
 
         getLogger().info("========================================");
-        getLogger().info("SalxAET v2.0 - Modüler Altyapi Aktif!");
+        getLogger().info("SalxAET v2.0 - Bütün Modüller Aktif!");
         getLogger().info("========================================");
     }
 
@@ -78,7 +83,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         if (msg.isEmpty()) {
             if (path.equals("prefix")) return "§8[§dSalxAET§8] ";
             if (path.equals("alert-format")) return "§f%player% §7adli oyuncu §e%check% §7shuphesi firlatti! §8(%details%)";
-            if (path.equals("kick.reason")) return "§c§l[SalxAET]\n\n§7Bu sunucudan uzaklastirildiniz!\n§bSebep: §eHile Kullanimi\n\n§7Eğer bunun bir hata olduğunu düşünüyorsanız yetkililere bildirin.";
+            if (path.equals("kick.reason")) return "§c§l[SalxAET]\n\n§7Sunucudan uzaklastirildiniz!\n§bSebep: §eHile Kullanimi\n\n§7Hata oldugunu dusunuyorsaniz bildirin.";
         }
         return ChatColor.translateAlternateColorCodes('&', msg);
     }
