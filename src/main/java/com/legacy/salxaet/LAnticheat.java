@@ -1,12 +1,5 @@
 package com.legacy.salxaet;
 
-import com.comphenix.protocol.PacketType;
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
-import com.comphenix.protocol.events.ListenerPriority;
-import com.comphenix.protocol.events.PacketAdapter;
-import com.comphenix.protocol.events.PacketEvent;
-import com.comphenix.protocol.wrappers.EnumWrappers;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -18,10 +11,11 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -36,7 +30,6 @@ import java.util.UUID;
 public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor {
 
     private static LAnticheat instance;
-    private ProtocolManager protocolManager;
     private final HashMap<UUID, PlayerData> playerDataMap = new HashMap<>();
     
     private File messagesFile;
@@ -50,18 +43,11 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         saveDefaultConfig();
         createMessagesConfig();
         
-        if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
-            this.protocolManager = ProtocolLibrary.getProtocolManager();
-            registerPacketChecks();
-        } else {
-            getLogger().severe("ProtocolLib bulunamadi! Paket tabanli kontroller devre disi.");
-        }
-        
         getServer().getPluginManager().registerEvents(this, this);
         getCommand("salxaet").setExecutor(this);
 
         getLogger().info("========================================");
-        getLogger().info("SalxAET v1.3 - Derleme Hatasi Cozuldu!");
+        getLogger().info("SalxAET v1.4 - MainThread Core Devreye Alindi!");
         getLogger().info("========================================");
     }
 
@@ -140,6 +126,20 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
     }
 
     @EventHandler
+    public void onInteract(PlayerInteractEvent event) {
+        if (!isAnticheatEnabled) return;
+        Player player = event.getPlayer();
+        
+        // FİŞEK TESPİTİ (Tamamen Güvenli MainThread Üzerinden)
+        if (event.getItem() != null && event.getItem().getType() == Material.FIREWORK_ROCKET) {
+            PlayerData data = playerDataMap.get(player.getUniqueId());
+            if (data != null) {
+                data.lastFireworkBoost = System.currentTimeMillis();
+            }
+        }
+    }
+
+    @EventHandler
     public void onMove(PlayerMoveEvent event) {
         if (!isAnticheatEnabled) return;
 
@@ -150,14 +150,32 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         PlayerData data = playerDataMap.get(player.getUniqueId());
         if (data == null) return;
 
+        Location from = event.getFrom();
+        Location to = event.getTo();
+
+        // KILLAURA ANLIK ROTASYON (SNAP) SENSÖRÜ
+        float yaw = to.getYaw();
+        float pitch = to.getPitch();
+        float deltaYaw = Math.abs(yaw - data.lastYaw);
+        float deltaPitch = Math.abs(pitch - data.lastPitch);
+
+        if (deltaYaw > 55.0F && deltaYaw < 300.0F && deltaPitch > 25.0F) {
+            // Eğer oyuncu son 1 saniye içinde birine vurduysa ve kafası aniden döndüyse yakala
+            if (System.currentTimeMillis() - data.getLastAttackTime() < 1000) {
+                triggerAlert(player, "Killaura (Rotation)", "Ani Donus: " + (int)deltaYaw + "°");
+            }
+        }
+        data.lastYaw = yaw;
+        data.lastPitch = pitch;
+
+        if (from.getX() == to.getX() && from.getY() == to.getY() && from.getZ() == to.getZ()) return;
+
+        // ELYTRA KORUMASI
         if (player.isGliding()) {
             long timeSinceBoost = System.currentTimeMillis() - data.lastFireworkBoost;
-            if (timeSinceBoost < 3500) return;
+            if (timeSinceBoost < 3500) return; 
             
             double maxElytraSpeed = getConfig().getDouble("checks.elytra.max-speed", 2.2);
-            
-            Location from = event.getFrom();
-            Location to = event.getTo();
             double deltaX = to.getX() - from.getX();
             double deltaZ = to.getZ() - from.getZ();
             double horizontalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
@@ -168,11 +186,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
             }
             return;
         }
-
-        Location from = event.getFrom();
-        Location to = event.getTo();
-
-        if (from.getX() == to.getX() && from.getY() == to.getY() && from.getZ() == to.getZ()) return;
 
         long groundBoostDiff = System.currentTimeMillis() - data.lastFireworkBoost;
         if (groundBoostDiff < 3000) return;
@@ -230,125 +243,72 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         }
     }
 
-    private void registerPacketChecks() {
-        protocolManager.addPacketListener(
-            new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.BLOCK_PLACE, PacketType.Play.Client.USE_ITEM) {
-                @Override
-                public void onPacketReceiving(PacketEvent event) {
-                    if (!isAnticheatEnabled) return;
-                    Player player = event.getPlayer();
-                    PlayerData data = playerDataMap.get(player.getUniqueId());
-                    if (data == null) return;
+    @EventHandler
+    public void onAttack(EntityDamageByEntityEvent event) {
+        if (!isAnticheatEnabled) return;
+        if (!(event.getDamager() instanceof Player) || !(event.getEntity() instanceof Player)) return;
 
-                    try {
-                        org.bukkit.inventory.ItemStack item = player.getInventory().getItemInMainHand();
-                        if (item != null && item.getType() == Material.FIREWORK_ROCKET) {
-                            data.lastFireworkBoost = System.currentTimeMillis();
-                        }
-                    } catch (Exception ignored) {}
-                }
+        Player player = (Player) event.getDamager();
+        Player victim = (Player) event.getEntity();
+
+        if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) return;
+
+        PlayerData data = playerDataMap.get(player.getUniqueId());
+        if (data == null) return;
+
+        // 1. Gelişmiş CPS / Hız Kontrolü
+        if (getConfig().getBoolean("checks.killaura.enabled", true)) {
+            long now = System.currentTimeMillis();
+            long diff = now - data.getLastAttackTime();
+            if (data.getLastAttackTime() != 0 && diff < getConfig().getInt("checks.killaura.min-ms-delay", 45)) {
+                event.setCancelled(true);
+                triggerAlert(player, "Killaura (CPS)", "Gecikme: " + diff + "ms");
+                return;
             }
-        );
+            data.setLastAttackTime(now);
+        }
 
-        protocolManager.addPacketListener(
-            new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.USE_ENTITY) {
-                @Override
-                public void onPacketReceiving(PacketEvent event) {
-                    if (!isAnticheatEnabled) return;
-                    Player player = event.getPlayer();
-                    PlayerData data = playerDataMap.get(player.getUniqueId());
-                    if (data == null) return;
+        // 2. Reach Kontrolü (Vuruş Mesafesi)
+        if (getConfig().getBoolean("checks.reach.enabled", true)) {
+            double distance = player.getLocation().distance(victim.getLocation());
+            double maxReach = getConfig().getDouble("checks.reach.max-distance", 3.3);
+            if (player.isGliding()) maxReach += 1.2; 
 
-                    // DERLEME HATASI BURADA ÇÖZÜLDÜ: ProtocolLib EnumWrappers kullanılarak sağ tık filtresi yapıldı
-                    try {
-                        EnumWrappers.EntityUseAction action = event.getPacket().getEnumModifier(EnumWrappers.EntityUseAction.class, 0).read(0);
-                        if (action != EnumWrappers.EntityUseAction.ATTACK) {
-                            return; 
-                        }
-                    } catch (Exception e) {
-                        return; 
-                    }
-
-                    if (getConfig().getBoolean("checks.killaura.enabled", true)) {
-                        long now = System.currentTimeMillis();
-                        long diff = now - data.getLastAttackTime();
-                        if (data.getLastAttackTime() != 0 && diff < getConfig().getInt("checks.killaura.min-ms-delay", 40)) {
-                            triggerAlert(player, "Killaura (CPS)", "Gecikme: " + diff + "ms");
-                        }
-                        data.setLastAttackTime(now);
-                    }
-
-                    try {
-                        Entity target = event.getPacket().getEntityModifier(event.getPlayer().getWorld()).read(0);
-                        if (target instanceof Player) {
-                            Player victim = (Player) target;
-                            
-                            if (getConfig().getBoolean("checks.reach.enabled", true)) {
-                                double distance = player.getLocation().distance(victim.getLocation());
-                                double maxReach = getConfig().getDouble("checks.reach.max-distance", 3.4);
-                                if (player.isGliding()) maxReach += 1.4; 
-
-                                if (distance > maxReach) {
-                                    event.setCancelled(true);
-                                    triggerAlert(player, "Reach/ElyTarget", "Mesafe: " + String.format("%.2f", distance));
-                                }
-                            }
-
-                            if (getConfig().getBoolean("checks.hitbox.enabled", true)) {
-                                Vector toVictim = victim.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
-                                Vector playerLook = player.getLocation().getDirection().normalize();
-                                double angle = Math.toDegrees(playerLook.angle(toVictim));
-                                
-                                double maxAngle = getConfig().getDouble("checks.hitbox.max-angle", 40.0);
-                                if (angle > maxAngle) {
-                                    event.setCancelled(true);
-                                    triggerAlert(player, "Killaura (Hitbox)", "Aci Sapmasi: " + String.format("%.1f", angle) + "°");
-                                }
-                            }
-
-                            if (getConfig().getBoolean("checks.antiwall.enabled", true)) {
-                                Location eyeLoc = player.getEyeLocation();
-                                Location targetLoc = victim.getEyeLocation();
-                                double distance = eyeLoc.distance(targetLoc);
-                                Vector dir = targetLoc.toVector().subtract(eyeLoc.toVector()).normalize();
-
-                                RayTraceResult ray = player.getWorld().rayTraceBlocks(eyeLoc, dir, distance, FluidCollisionMode.NEVER, true);
-                                if (ray != null && ray.getHitBlock() != null && ray.getHitBlock().getType().isSolid()) {
-                                    event.setCancelled(true);
-                                    triggerAlert(player, "Killaura (Wall)", "Duvar arkasi hasar engellendi! (" + ray.getHitBlock().getType().name() + ")");
-                                }
-                            }
-                        }
-                    } catch (Exception ignored) {}
-                }
+            if (distance > maxReach) {
+                event.setCancelled(true);
+                triggerAlert(player, "Reach/ElyTarget", "Mesafe: " + String.format("%.2f", distance));
+                return;
             }
-        );
+        }
 
-        protocolManager.addPacketListener(
-            new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.LOOK) {
-                @Override
-                public void onPacketReceiving(PacketEvent event) {
-                    if (!isAnticheatEnabled || !getConfig().getBoolean("checks.killaura.check-rotation", true)) return;
-
-                    Player player = event.getPlayer();
-                    PlayerData data = playerDataMap.get(player.getUniqueId());
-                    if (data == null) return;
-
-                    float yaw = event.getPacket().getFloat().read(0);
-                    float pitch = event.getPacket().getFloat().read(1);
-
-                    float deltaYaw = Math.abs(yaw - data.lastYaw);
-                    float deltaPitch = Math.abs(pitch - data.lastPitch);
-
-                    if (deltaYaw > 55.0F && deltaYaw < 300.0F && deltaPitch > 25.0F) {
-                        triggerAlert(player, "Killaura (Rotation)", "Ani Donus: " + (int)deltaYaw + "°");
-                    }
-
-                    data.lastYaw = yaw;
-                    data.lastPitch = pitch;
-                }
+        // 3. Hitbox Kontrolü (Açı Filtresi - 35 Dereceye Sertleştirildi)
+        if (getConfig().getBoolean("checks.hitbox.enabled", true)) {
+            Vector toVictim = victim.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
+            Vector playerLook = player.getLocation().getDirection().normalize();
+            double angle = Math.toDegrees(playerLook.angle(toVictim));
+            
+            double maxAngle = getConfig().getDouble("checks.hitbox.max-angle", 35.0);
+            if (angle > maxAngle) {
+                event.setCancelled(true);
+                triggerAlert(player, "Killaura (Hitbox)", "Aci Sapmasi: " + String.format("%.1f", angle) + "°");
+                return;
             }
-        );
+        }
+
+        // 4. KUSURSUZ DUVAR ARKASI HASAR ENGELLEYİCİ (Sunucu Ana İş Parçacığında Çalışır)
+        if (getConfig().getBoolean("checks.antiwall.enabled", true)) {
+            Location eyeLoc = player.getEyeLocation();
+            Location targetLoc = victim.getEyeLocation();
+            double distance = eyeLoc.distance(targetLoc);
+            Vector dir = targetLoc.toVector().subtract(eyeLoc.toVector()).normalize();
+
+            // İki oyuncu arasındaki blokları tarar
+            RayTraceResult ray = player.getWorld().rayTraceBlocks(eyeLoc, dir, distance, FluidCollisionMode.NEVER, true);
+            if (ray != null && ray.getHitBlock() != null && ray.getHitBlock().getType().isSolid()) {
+                event.setCancelled(true);
+                triggerAlert(player, "Killaura (Wall)", "Duvar arkasi engel: " + ray.getHitBlock().getType().name());
+            }
+        }
     }
 
     private void triggerAlert(Player player, String checkName, String details) {
@@ -425,4 +385,4 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         public void setLastAttackTime(long lastAttackTime) { this.lastAttackTime = lastAttackTime; }
     }
             }
-        
+                                   
