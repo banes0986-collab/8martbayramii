@@ -1,4 +1,4 @@
-package com.legacy.salxaet;
+package com.legacy.salxaet.src.main.java.com.legacy.salxaet;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
