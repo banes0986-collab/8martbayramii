@@ -3,78 +3,46 @@
 #               Tasarlayan & Geliştiren: LegacyNetwork (SalxAET)
 # ==============================================================================
 
-# ------------------------------------------------------------------------------
-# GENEL SİSTEM AYARLARI
-# ------------------------------------------------------------------------------
 settings:
-  # Yetkililere anlık hile bildirimleri gönderilsin mi? (true/false)
   send-alerts: true
-  
-  # Hile bildirimleri sunucu konsoluna (log dosyasına) kaydedilsin mi?
   log-to-console: true
 
-# ------------------------------------------------------------------------------
-# HİLE KONTROLLERİ VE HASSASİYET AYARLARI
-# ------------------------------------------------------------------------------
 checks:
-
-  # [SPEED] Hızlı Koşma, Hareket Hileleri (Hacks: Speed, Timer, OmniSprint)
   speed:
     enabled: true
-    # Hassasiyet Sınırı: Yerdeki oyuncu için maksimum blok hızıdır.
-    # (Varsayılan: 0.85 - Altına düşürmek laglı oyuncuları haksız yere geri atabilir)
     threshold: 0.85
-    # Kaç ihlalden sonra oyuncu eski yerine geri çekilsin? (Rubberband)
     max-violations: 8
-    # Oyuncu sınırı aşarsa geriye doğru çekilsin mi?
     rubberband: true
 
-  # [FLY] Uçma, Havada Asılı Kalma (Hacks: Fly, Glide, Spider)
   fly:
     enabled: true
-    # Kaç ihlalden sonra uçan oyuncu yere/eski konumuna çekilsin?
     max-violations: 5
-    # Geri çekme aktif olsun mu?
     rubberband: true
 
-  # [KILLAURA] Savaş Hileleri (Hacks: Killaura, ForceField, TriggerBot)
+  noweb:
+    enabled: true # [NOWEB] Örümcek ağında hızlı yürüme engeli aktif!
+
   killaura:
     enabled: true
-    # CPS Sınırı (Milisaniye): İki vuruş arasındaki minimum insan dışı süre.
-    # 45ms = ~22 CPS (Makroları ve Aura vuruşlarını anında yakalar)
-    min-ms-delay: 45
-    # Ani/İnsandışı kafa rotasyon ve kilitlenme kontrolü (true/false)
-    check-rotation: true
+    min-ms-delay: 45 # CPS Limiti
+    check-rotation: true # Killaura anlık kilitlenme ve rotasyon koruması
 
-  # [REACH] Uzaktan Vurma Koruması (Hacks: Reach, LongAttack)
+  antiwall:
+    enabled: true # [ANTI-WALL] Duvar arkasından vurma engeli aktif!
+
   reach:
     enabled: true
-    # Maksimum vurma mesafesi (Blok cinsinden).
-    # Minecraft vanilya sınırı 3.0'dır. Lag toleransı ile ideal ayar: 3.4
-    max-distance: 3.4
+    max-distance: 3.4 # Blok ulaşım sınırı (Aura Reach yakalaması için ideal)
 
-  # [HITBOX] Genişletilmiş Gövde, Arkaya Vurma Koruması (Hacks: HitBox, Anti-Look)
   hitbox:
     enabled: true
-    # Maksimum Bakış Açısı Sapması: Oyuncu, hedefinden kaç derece uzağa bakarak vurabilir?
-    # (110.0 derece üzeri, oyuncunun arkasındaki veya yanındaki hedeflere vurmasını engeller)
-    max-angle: 110.0
+    max-angle: 110.0 # Görüş açısı dışı hileli vuruş koruması
 
-  # [NUKER] Hızlı Blok Kırma Koruması (Hacks: Nuker, FastBreak, AutoBreak)
   nuker:
     enabled: true
-    # Bir saniyede kırılabilecek maksimum yasal blok miktarı.
-    # (Haste efekti ve verimlilik 5 kazmalar hesaba katılarak 15 olarak ayarlanmıştır)
     max-breaks-per-sec: 15
 
-  # [ELYTRA] Elytra Hız ve Uçuş Koruması (Hacks: ElytraFly, ElytraBooster)
   elytra:
     enabled: true
-    # Elytra ile saniyede kat edilebilecek maksimum yatay mesafe (Blok).
-    # Havai fişek patlamaları ve ani hızlanmalar için güvenli sınır: 1.8
     max-speed: 1.8
-
-# ==============================================================================
-#                 Yapılandırma Bitti! Değişiklikleri Kaydedip
-#                     /salxaet reload yazarak yenileyin.
-# ==============================================================================
+    
