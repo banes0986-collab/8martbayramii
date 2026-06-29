@@ -219,7 +219,7 @@ public class MovementListener implements Listener {
      * Oyuncunun içinden geçebileceği "solid" blok istisnalarını tanımlar.
      */
     private boolean isPassableForPlayer(Material type) {
-        return type == Material.GRASS || type == Material.TALL_GRASS
+        return type == Material.SHORT_GRASS || type == Material.TALL_GRASS
                 || type == Material.FERN || type == Material.LARGE_FERN
                 || type == Material.DEAD_BUSH || type == Material.SNOW
                 || type == Material.SUGAR_CANE || type == Material.BAMBOO
