@@ -1,0 +1,13 @@
+prefix: "&8[&dSalxAET&8] "
+alert-format: "&f%player% &7adlı oyuncu &e%check% &7şüphesi fırlattı! &8(%details%)"
+
+commands:
+  no-permission: "&cYetkiniz yok!"
+  already-active: "&eSalxAET zaten aktif!"
+  activated: "&aHile koruması devreye alındı!"
+  already-disabled: "&eSalxAET zaten devre dışı!"
+  disabled: "&cHile koruması kapatıldı!"
+  reloaded: "&aAyarlar yenilendi!"
+
+kick:
+  reason: "&c&l[SalxAET]\n\n&7Sunucudan uzaklaştırıldınız!\n&bSebep: &eHile Kullanımı"
