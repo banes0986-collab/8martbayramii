@@ -105,8 +105,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         return true;
     }
 
-    // --- EN OPTİMİZE HAREKET KONTROLLERİ (ZIPLAMA VE NOWEB DÜZELTİLDİ) ---
-
     @EventHandler
     public void onMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
@@ -126,17 +124,13 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         double horizontalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
         double deltaY = to.getY() - from.getY();
 
-        // Oyuncunun bastığı bloğu ve içinden geçtiği bloğu alalım
         Material standBlock = player.getLocation().getBlock().getType();
         Material footBlock = player.getLocation().clone().add(0, -0.1, 0).getBlock().getType();
         boolean isOnGround = footBlock.isSolid() || player.isOnGround();
 
-        // Zıplama tespiti (Zıplama anında dikey ivme yükselir, tolerans eklenerek sahte loglar fixlendi)
         boolean isJumping = deltaY > 0.419 && !isOnGround;
 
-        // --- 1. NOWEB KONTROLÜ ---
         if (standBlock == Material.COBWEB && getConfig().getBoolean("checks.noweb.enabled", true)) {
-            // Örümcek ağında normal yürüme hızı aşırı düşüktür (maksimum ~0.15). Eğer uçuyor/hızlı gidiyorsa yakalar.
             if (horizontalDistance > 0.22) {
                 triggerAlert(player, "NoWeb", "Agda Hiz: " + String.format("%.2f", horizontalDistance));
                 event.setTo(from);
@@ -144,7 +138,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
             }
         }
 
-        // --- 2. ELYTRA KONTROLÜ ---
         if (player.isGliding() && getConfig().getBoolean("checks.elytra.enabled", true)) {
             double maxElytraSpeed = getConfig().getDouble("checks.elytra.max-speed", 1.8);
             if (horizontalDistance > maxElytraSpeed) {
@@ -155,10 +148,9 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         }
 
         if (!player.isGliding()) {
-            // --- 3. SPEED KONTROLÜ ---
             if (getConfig().getBoolean("checks.speed.enabled", true)) {
                 double maxNormalSpeed = isOnGround ? 0.88 : 0.98;
-                if (isJumping) maxNormalSpeed = 1.15; // Zıplama esnasındaki ivme toleransı genişletildi (FIX)
+                if (isJumping) maxNormalSpeed = 1.15;
 
                 if (horizontalDistance > maxNormalSpeed) {
                     data.addFlag();
@@ -172,9 +164,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                 }
             }
 
-            // --- 4. FLY KONTROLÜ ---
             if (getConfig().getBoolean("checks.fly.enabled", true) && !isOnGround && !isJumping) {
-                // Oyuncu havada düşmüyor veya yükselmiyorsa ama yatayda uçarcasına ilerliyorsa
                 if (Math.abs(deltaY) < 0.001 && horizontalDistance > 0.28) {
                     data.addFlag();
                     triggerAlert(player, "Fly", "Havada Suzulme");
@@ -193,7 +183,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         }
     }
 
-    // --- 5. NUKER KONTROLÜ ---
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         if (!getConfig().getBoolean("checks.nuker.enabled", true)) return;
@@ -217,9 +206,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         }
     }
 
-    // --- PAKET TABANLI GELİŞMİŞ SAVAŞ KONTROLLERİ (AURA, REACH, WALL) ---
     private void registerPacketChecks() {
-        
         protocolManager.addPacketListener(
             new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.USE_ENTITY) {
                 @Override
@@ -228,7 +215,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                     PlayerData data = playerDataMap.get(player.getUniqueId());
                     if (data == null) return;
 
-                    // A) CPS / Makro Kontrolü
                     if (getConfig().getBoolean("checks.killaura.enabled", true)) {
                         long now = System.currentTimeMillis();
                         long diff = now - data.getLastAttackTime();
@@ -243,17 +229,15 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                         if (target instanceof Player) {
                             Player victim = (Player) target;
                             
-                            // B) Gelişmiş Reach Kontrolü
                             if (getConfig().getBoolean("checks.reach.enabled", true)) {
                                 double distance = player.getLocation().distance(victim.getLocation());
                                 double maxReach = getConfig().getDouble("checks.reach.max-distance", 3.4);
                                 if (distance > maxReach) {
-                                    event.setCancelled(true); // Hasarı engelle
+                                    event.setCancelled(true);
                                     triggerAlert(player, "Reach", "Mesafe: " + String.format("%.2f", distance));
                                 }
                             }
 
-                            // C) Gelişmiş Hitbox / Görüş Açısı (Aura Hedef Tespiti)
                             if (getConfig().getBoolean("checks.hitbox.enabled", true)) {
                                 Vector toVictim = victim.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
                                 Vector playerLook = player.getLocation().getDirection().normalize();
@@ -266,9 +250,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                                 }
                             }
 
-                            // D) Duvar Arkası Vurma Engeli (Anti-WallHack)
                             if (getConfig().getBoolean("checks.antiwall.enabled", true)) {
-                                // Oyuncu ile kurban arasında katı bir blok olup olmadığını doğrular raytrace ile süzme yapar
                                 if (!player.hasLineOfSight(victim)) {
                                     event.setCancelled(true);
                                     triggerAlert(player, "Killaura (Wall)", "Duvar arkasindan vurdu!");
@@ -280,7 +262,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
             }
         );
 
-        // E) Aura Rotasyon / İnsandışı Kilitlenme Kontrolü
         protocolManager.addPacketListener(
             new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.LOOK) {
                 @Override
@@ -297,7 +278,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                     float deltaYaw = Math.abs(yaw - data.lastYaw);
                     float deltaPitch = Math.abs(pitch - data.lastPitch);
 
-                    // Hilelerin saliseler içinde hedefe 180 derece snap atarak kitlenmesini yakalar
                     if (deltaYaw > 290.0F && deltaPitch > 130.0F) {
                         triggerAlert(player, "Killaura (Rotation)", "Anormal Donus: " + (int)deltaYaw);
                     }
@@ -352,5 +332,18 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         public long lastBlockBreakTime = 0;
         public int blockBreaksInSecond = 0;
 
-        public float lastYaw =
-                                    
+        public float lastYaw = 0.0F;
+        public float lastPitch = 0.0F;
+
+        public PlayerData(Player player) { this.player = player; }
+        public Player getPlayer() { return player; }
+        public int getFlags() { return violationFlags; }
+        public void addFlag() { this.violationFlags += 2; }
+        public void decreaseFlag() { if (this.violationFlags > 0) this.violationFlags--; }
+        public void resetFlags() { this.violationFlags = 0; }
+        
+        public long getLastAttackTime() { return lastAttackTime; }
+        public void setLastAttackTime(long lastAttackTime) { this.lastAttackTime = lastAttackTime; }
+    }
+                             }
+        
