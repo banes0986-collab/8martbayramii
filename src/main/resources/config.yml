@@ -1,0 +1,41 @@
+# ==========================================
+#          SalxAET - Gelişmiş Ayarlar
+# ==========================================
+
+settings:
+  send-alerts: true
+  log-to-console: true
+
+checks:
+  speed:
+    enabled: true
+    threshold: 0.75
+    max-violations: 8
+    rubberband: true
+
+  fly:
+    enabled: true
+    max-violations: 5
+    rubberband: true
+
+  killaura:
+    enabled: true
+    min-ms-delay: 45 # CPS Sınırı
+    check-rotation: true # Ani/İnsandışı rota değişim kontrolü
+
+  reach:
+    enabled: true
+    max-distance: 3.4 # Blok vurma sınırı (Minecraft vanilya sınırı ~3.0)
+
+  hitbox:
+    enabled: true
+    max-angle: 110.0 # Oyuncunun bakış açısının dışındaki vurma sınırı
+
+  nuker:
+    enabled: true
+    max-breaks-per-sec: 15 # Bir saniyede kırılabilecek maksimum blok sınırı
+
+  elytra:
+    enabled: true
+    max-speed: 1.8 # Elytra ile saniyede yapılabilecek maksimum hız eşiği
+    
