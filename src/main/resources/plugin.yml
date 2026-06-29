@@ -3,7 +3,8 @@ version: 1.0-SNAPSHOT
 main: com.legacy.salxaet.LAnticheat
 api-version: '1.21'
 author: LegacyNetwork
-description: LegacyNetwork Ozel AntiCheat Eklentisi
+description: LegacyNetwork Ozel Gelişmiş AntiCheat Eklentisi
+depend: [ProtocolLib]
 
 commands:
   salxaet:
