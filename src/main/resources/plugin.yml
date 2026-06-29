@@ -1,0 +1,21 @@
+name: SalxAET
+version: 2.0
+main: com.legacy.salxaet.LAnticheat
+api-version: '1.21'
+author: LegacyNetwork
+description: LegacyNetwork Özel AntiCheat
+depend: [ProtocolLib]
+
+permissions:
+  salxaet.admin:
+    description: SalxAET yönetici yetkisi
+    default: op
+  salxaet.bypass:
+    description: AntiCheat bypass
+    default: false
+
+commands:
+  salxaet:
+    description: SalxAET ana komutu
+    permission: salxaet.admin
+    usage: /<command> <reload|enable|disable>
