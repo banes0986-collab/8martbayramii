@@ -6,6 +6,7 @@ import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
+import com.comphenix.protocol.wrappers.EnumWrappers;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -60,7 +61,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         getCommand("salxaet").setExecutor(this);
 
         getLogger().info("========================================");
-        getLogger().info("SalxAET v1.3 - Sertlestirilmis Safe-Core Aktif!");
+        getLogger().info("SalxAET v1.3 - Derleme Hatasi Cozuldu!");
         getLogger().info("========================================");
     }
 
@@ -151,7 +152,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
 
         if (player.isGliding()) {
             long timeSinceBoost = System.currentTimeMillis() - data.lastFireworkBoost;
-            if (timeSinceBoost < 3500) return; // Fişek basıldıysa bypass modu
+            if (timeSinceBoost < 3500) return;
             
             double maxElytraSpeed = getConfig().getDouble("checks.elytra.max-speed", 2.2);
             
@@ -230,7 +231,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
     }
 
     private void registerPacketChecks() {
-        // Sağ tık havaya basınca veya blok koyunca fişek algılama
         protocolManager.addPacketListener(
             new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.BLOCK_PLACE, PacketType.Play.Client.USE_ITEM) {
                 @Override
@@ -250,7 +250,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
             }
         );
 
-        // Vuruş paketleri dinleyicisi
         protocolManager.addPacketListener(
             new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.USE_ENTITY) {
                 @Override
@@ -260,14 +259,14 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                     PlayerData data = playerDataMap.get(player.getUniqueId());
                     if (data == null) return;
 
-                    // SAĞ TIK HATASI ÇÖZÜMÜ: Paket içeriği ATTACK değilse kontrol etme (Köylü açma, kalkan basma vs. log atmaz)
+                    // DERLEME HATASI BURADA ÇÖZÜLDÜ: ProtocolLib EnumWrappers kullanılarak sağ tık filtresi yapıldı
                     try {
-                        String actionType = event.getPacket().getEntityUseAction().read(0).toString();
-                        if (!actionType.contains("ATTACK")) {
+                        EnumWrappers.EntityUseAction action = event.getPacket().getEnumModifier(EnumWrappers.EntityUseAction.class, 0).read(0);
+                        if (action != EnumWrappers.EntityUseAction.ATTACK) {
                             return; 
                         }
                     } catch (Exception e) {
-                        return; // Paket okunamadıysa işlemi güvenle kes
+                        return; 
                     }
 
                     if (getConfig().getBoolean("checks.killaura.enabled", true)) {
@@ -284,7 +283,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                         if (target instanceof Player) {
                             Player victim = (Player) target;
                             
-                            // ElyTarget & Gelişmiş Reach
                             if (getConfig().getBoolean("checks.reach.enabled", true)) {
                                 double distance = player.getLocation().distance(victim.getLocation());
                                 double maxReach = getConfig().getDouble("checks.reach.max-distance", 3.4);
@@ -296,13 +294,11 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                                 }
                             }
 
-                            // HİLELERİ AFFETMEYEN YENİ SENSÖR (Hitbox Açı Daraltıldı)
                             if (getConfig().getBoolean("checks.hitbox.enabled", true)) {
                                 Vector toVictim = victim.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
                                 Vector playerLook = player.getLocation().getDirection().normalize();
                                 double angle = Math.toDegrees(playerLook.angle(toVictim));
                                 
-                                // Eski değer 115'ti (çok gevşekti), 40 dereceye çektik. Kafasını çevirmeden vuran her hileyi yakalar!
                                 double maxAngle = getConfig().getDouble("checks.hitbox.max-angle", 40.0);
                                 if (angle > maxAngle) {
                                     event.setCancelled(true);
@@ -310,14 +306,12 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                                 }
                             }
 
-                            // KUSURSUZ DUVAR ARKASI VURMA ENGELLEYİCİ (Bukkit RayTrace)
                             if (getConfig().getBoolean("checks.antiwall.enabled", true)) {
                                 Location eyeLoc = player.getEyeLocation();
                                 Location targetLoc = victim.getEyeLocation();
                                 double distance = eyeLoc.distance(targetLoc);
                                 Vector dir = targetLoc.toVector().subtract(eyeLoc.toVector()).normalize();
 
-                                // Oyuncu ile kurban arasındaki blokları ışın motoruyla tara (Sıvıları es geç, katı blokları yakala)
                                 RayTraceResult ray = player.getWorld().rayTraceBlocks(eyeLoc, dir, distance, FluidCollisionMode.NEVER, true);
                                 if (ray != null && ray.getHitBlock() != null && ray.getHitBlock().getType().isSolid()) {
                                     event.setCancelled(true);
@@ -330,7 +324,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
             }
         );
 
-        // KILLAURA ANLIK ROTASYON (SNAP) SENSÖRÜ
         protocolManager.addPacketListener(
             new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.LOOK) {
                 @Override
@@ -347,7 +340,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                     float deltaYaw = Math.abs(yaw - data.lastYaw);
                     float deltaPitch = Math.abs(pitch - data.lastPitch);
 
-                    // Değerleri hassaslaştırdık: En dandiğinden en pahalısına kadar anlık hedef kilitleyen (Snap) hileleri avlar
                     if (deltaYaw > 55.0F && deltaYaw < 300.0F && deltaPitch > 25.0F) {
                         triggerAlert(player, "Killaura (Rotation)", "Ani Donus: " + (int)deltaYaw + "°");
                     }
@@ -432,5 +424,5 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         public long getLastAttackTime() { return lastAttackTime; }
         public void setLastAttackTime(long lastAttackTime) { this.lastAttackTime = lastAttackTime; }
     }
-                                                                            }
-                                    
+            }
+        
