@@ -1,20 +1,12 @@
-name: lAnticheat
-version: '1.0-SNAPSHOT'
+name: SalxAET
+version: 1.0-SNAPSHOT
 main: com.legacy.salxaet.LAnticheat
-api-version: '1.16'
-author: triggerbabaa
-description: Gelişmiş anti cheat plugini.
+api-version: '1.21'
+author: LegacyNetwork
+description: LegacyNetwork Ozel AntiCheat Eklentisi
 
 commands:
-  lanticheat:
-    description: lAnticheat ana komutu.
-    usage: /<command> reload
-    permission: lanticheat.reload
-
-permissions:
-  lanticheat.alert:
-    description: Gelen anti cheat loglarını görme yetkisi.
-    default: op
-  lanticheat.reload:
-    description: Configi yeniden yükleme yetkisi.
-    default: op
+  salxaet:
+    description: SalxAET ana komutu.
+    permission: salxaet.admin
+    usage: /<command>
