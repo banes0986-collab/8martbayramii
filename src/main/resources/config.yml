@@ -1,0 +1,31 @@
+settings:
+  send-alerts: true
+  log-to-console: true
+
+checks:
+  speed:
+    enabled: true
+    threshold: 0.96
+    max-violations: 8
+    rubberband: true
+  fly:
+    enabled: true
+    max-violations: 5
+    rubberband: true
+  noweb:
+    enabled: true
+  killaura:
+    enabled: true
+    min-ms-delay: 40
+    check-rotation: true
+  antiwall:
+    enabled: true
+  reach:
+    enabled: true
+    max-distance: 3.5
+  hitbox:
+    enabled: true
+    max-angle: 115.0
+  elytra:
+    enabled: true
+    max-speed: 2.2
