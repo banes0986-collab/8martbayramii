@@ -1,11 +1,21 @@
-# ==========================================
-#         SalxAET - Mesaj Ayarlari
-# ==========================================
+# ==============================================================================
+#                  SalxAET - Özelleştirilebilir Dil Dosyası
+#               Tasarlayan & Geliştiren: LegacyNetwork (SalxAET)
+# ==============================================================================
 
 prefix: "&8[&dSalxAET&8] "
-no-permission: "&cBu komutu kullanmak icin yetkiniz yok!"
-reload-success: "&aKonfigurasyon ve mesajlar basariyla yenilendi!"
+alert-format: "&f%player% &7adlı oyuncu &e%check% &7şüphesi fırlattı! &8(%details%)"
 
-# Uyarı mesajı formatı (%player% -> Oyuncu, %check% -> Hile Türü, %details% -> Detaylar)
-# Örn: [SalxAET] banes0986-collab adli oyuncu Hitbox / Rotation shuphesi firlatti! (Aci Sapmasi: 115.2 derecede arkaya vurdu)
-alert-format: "&f%player% &7adli oyuncu &e%check% &7shuphesi firlatti! &8(%details%)"
+commands:
+  no-permission: "&cBu komutu kullanmak için yetkiniz yok!"
+  already-active: "&eSalxAET hile koruması zaten aktif durumda!"
+  activated: "&aHile koruması başarıyla devreye sokuldu!"
+  already-disabled: "&eSalxAET hile koruması zaten devre dışı!"
+  disabled: "&cHile koruması tamamen kapatıldı!"
+  reloaded: "&aAyarlar ve mesajlar başarıyla yenilendi!"
+
+kick:
+  # Oyuncu 15 log sınırını aştığında ekranda belirecek uzaklaştırma ekranı mesajı
+  # Alt satıra geçmek için \n kullanabilirsin. Renk kodları (&) aktiftir.
+  reason: "&c&l[SalxAET]\n\n&7Sunucudan otomatik olarak uzaklaştırıldınız!\n&bSebep: &eHile Kullanımı (15 İhlal Sınırı Aşıldı)\n\n&7Eğer bunun bir hata olduğunu düşünüyorsanız yetkililere bildirin."
+  
