@@ -10,7 +10,7 @@ settings:
 checks:
   speed:
     enabled: true
-    threshold: 0.85
+    threshold: 0.96
     max-violations: 8
     rubberband: true
 
@@ -20,29 +20,25 @@ checks:
     rubberband: true
 
   noweb:
-    enabled: true # [NOWEB] Örümcek ağında hızlı yürüme engeli aktif!
+    enabled: true
 
   killaura:
     enabled: true
-    min-ms-delay: 45 # CPS Limiti
-    check-rotation: true # Killaura anlık kilitlenme ve rotasyon koruması
+    min-ms-delay: 40
+    check-rotation: true # Rotasyon kilitlenme kontrolü aktif
 
   antiwall:
-    enabled: true # [ANTI-WALL] Duvar arkasından vurma engeli aktif!
+    enabled: true # Duvar arkası vurma engeli aktif
 
   reach:
     enabled: true
-    max-distance: 3.4 # Blok ulaşım sınırı (Aura Reach yakalaması için ideal)
+    max-distance: 3.5 # Algılama mesafesi (Kararlı reach kontrolü)
 
   hitbox:
     enabled: true
-    max-angle: 110.0 # Görüş açısı dışı hileli vuruş koruması
-
-  nuker:
-    enabled: true
-    max-breaks-per-sec: 15
+    max-angle: 115.0
 
   elytra:
     enabled: true
-    max-speed: 1.8
+    max-speed: 2.2 # Normal süzülme hızı (Fişek basınca otomatik tolere edilir)
     
