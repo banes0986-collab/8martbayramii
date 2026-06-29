@@ -10,7 +10,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -107,7 +106,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
 
     // --- EVENT TABANLI KONTROLLER ---
 
-    // 1. KONTROL: HAREKET, FLY & ELYTRA KORUMASI
     @EventHandler
     public void onMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
@@ -160,7 +158,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         }
     }
 
-    // 2. KONTROL: NUKER (HIZLI BLOK KIRMA) KORUMASI
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         if (!getConfig().getBoolean("checks.nuker.enabled", true)) return;
@@ -185,7 +182,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         }
     }
 
-    // --- PAKET TABANLI KONTROLLER (COMBAT, REACH, HITBOX, ROTASYON) ---
+    // --- PAKET TABANLI KONTROLLER ---
     private void registerPacketChecks() {
         // Killaura, Reach & Hitbox Kontrolü
         protocolManager.addPacketListener(
@@ -196,7 +193,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                     PlayerData data = playerDataMap.get(player.getUniqueId());
                     if (data == null) return;
 
-                    // 1. Killaura CPS Kontrolü
                     if (getConfig().getBoolean("checks.killaura.enabled", true)) {
                         long now = System.currentTimeMillis();
                         long diff = now - data.getLastAttackTime();
@@ -206,39 +202,41 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                         data.setLastAttackTime(now);
                     }
 
-                    // Reach & Hitbox Matematiksel Kontrolü
-                    Entity target = event.getPacket().getEntities().read(0);
-                    if (target instanceof Player) {
-                        Player victim = (Player) target;
-                        
-                        // Reach Kontrolü
-                        if (getConfig().getBoolean("checks.reach.enabled", true)) {
-                            double distance = player.getLocation().distance(victim.getLocation());
-                            double maxReach = getConfig().getDouble("checks.reach.max-distance", 3.4);
-                            if (distance > maxReach) {
-                                triggerAlert(player, "Reach", "Mesafe: " + String.format("%.2f", distance) + " blok");
-                            }
-                        }
-
-                        // Hitbox & Rotasyon Kontrolü
-                        if (getConfig().getBoolean("checks.hitbox.enabled", true)) {
-                            Vector toVictim = victim.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
-                            Vector playerLook = player.getLocation().getDirection().normalize();
-                            double angle = Math.toDegrees(playerLook.angle(toVictim));
+                    // Hata veren yer düzeltildi: getEntityModifier kullanıldı
+                    try {
+                        Entity target = event.getPacket().getEntityModifier(event.getPlayer().getWorld()).read(0);
+                        if (target instanceof Player) {
+                            Player victim = (Player) target;
                             
-                            double maxAngle = getConfig().getDouble("checks.hitbox.max-angle", 110.0);
-                            if (angle > maxAngle) {
-                                triggerAlert(player, "Hitbox / Rotation", "Aci Sapmasi: " + String.format("%.1f", angle) + " derecede arkaya vurdu");
+                            // Reach Kontrolü
+                            if (getConfig().getBoolean("checks.reach.enabled", true)) {
+                                double distance = player.getLocation().distance(victim.getLocation());
+                                double maxReach = getConfig().getDouble("checks.reach.max-distance", 3.4);
+                                if (distance > maxReach) {
+                                    triggerAlert(player, "Reach", "Mesafe: " + String.format("%.2f", distance) + " blok");
+                                }
+                            }
+
+                            // Hitbox Kontrolü
+                            if (getConfig().getBoolean("checks.hitbox.enabled", true)) {
+                                Vector toVictim = victim.getLocation().toVector().subtract(player.getLocation().toVector()).normalize();
+                                Vector playerLook = player.getLocation().getDirection().normalize();
+                                double angle = Math.toDegrees(playerLook.angle(toVictim));
+                                
+                                double maxAngle = getConfig().getDouble("checks.hitbox.max-angle", 110.0);
+                                if (angle > maxAngle) {
+                                    triggerAlert(player, "Hitbox / Rotation", "Aci Sapmasi: " + String.format("%.1f", angle) + " derece");
+                                }
                             }
                         }
-                    }
+                    } catch (Exception ignored) {}
                 }
             }
         );
 
-        // Killaura Anormal Rotasyon Kontrolü (Göz Kırpma/Anında Dönme)
+        // Hata veren yer düzeltildi: PacketType.Play.Client.LOOK kullanıldı
         protocolManager.addPacketListener(
-            new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.PLAYER_ROTATION) {
+            new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.LOOK) {
                 @Override
                 public void onPacketReceiving(PacketEvent event) {
                     if (!getConfig().getBoolean("checks.killaura.check-rotation", true)) return;
@@ -253,7 +251,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                     float deltaYaw = Math.abs(yaw - data.lastYaw);
                     float deltaPitch = Math.abs(pitch - data.lastPitch);
 
-                    // Anında 180 derece veya imkansız rotasyon tespiti
                     if (deltaYaw > 280.0F && deltaPitch > 120.0F) {
                         triggerAlert(player, "Aura Rotation", "Imkansiz Donus: Yaw " + (int)deltaYaw);
                     }
@@ -300,17 +297,14 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
 
     public static LAnticheat getInstance() { return instance; }
 
-    // --- VERİ SAKLAMA YAPISI ---
     public static class PlayerData {
         private final Player player;
         private int violationFlags = 0;
         private long lastAttackTime = 0;
         
-        // Nuker Verileri
         public long lastBlockBreakTime = 0;
         public int blockBreaksInSecond = 0;
 
-        // Rotasyon Verileri
         public float lastYaw = 0.0F;
         public float lastPitch = 0.0F;
 
@@ -321,5 +315,4 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         public long getLastAttackTime() { return lastAttackTime; }
         public void setLastAttackTime(long lastAttackTime) { this.lastAttackTime = lastAttackTime; }
     }
-            }
-                    
+}
