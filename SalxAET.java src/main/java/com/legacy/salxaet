@@ -1,17 +1,18 @@
-package com.example.lanticheat;
+package com.legacy.salxaet;
 
 import org.bukkit.plugin.java.JavaPlugin;
 
-// Sınıf isminin tam olarak LAnticheat olduğundan emin ol
 public class LAnticheat extends JavaPlugin {
-    
+
     @Override
     public void onEnable() {
-        getLogger().info("lAnticheat başarıyla aktif edildi!");
+        // Sunucu acildiginda konsola verilecek mesaj
+        getLogger().info("SalxAET Aktif Edildi! - LegacyNetwork");
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("lAnticheat kapatıldı.");
+        // Sunucu kapandiginda veya eklenti reload yediginde verilecek mesaj
+        getLogger().info("SalxAET Devre Disi Birakildi!");
     }
 }
