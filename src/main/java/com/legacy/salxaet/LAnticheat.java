@@ -57,7 +57,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         getCommand("salxaet").setExecutor(this);
 
         getLogger().info("========================================");
-        getLogger().info("SalxAET v1.0 - Gelişmiş Tüm Korumalar Aktif!");
+        getLogger().info("SalxAET v1.0 - Stabilize Korumalar Aktif!");
         getLogger().info("========================================");
     }
 
@@ -97,19 +97,22 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                 return true;
             }
             reloadPluginConfigs();
-            sender.sendMessage(getMessage("prefix") + getMessage("reload-success"));
+            sender.sendMessage(getMessage("prefix") + "§aAyarlar yenilendi!");
             return true;
         }
         sender.sendMessage(ChatColor.RED + "Kullanim: /salxaet reload");
         return true;
     }
 
-    // --- EVENT TABANLI KONTROLLER ---
+    // --- EVENT TABANLI GELİŞTİRİLMİŞ HAREKET KONTROLLERİ ---
 
     @EventHandler
     public void onMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
         if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR || player.getAllowFlight()) return;
+
+        // Oyuncu teleport olduysa veya araçtaysa kontrolü atla (Sahte tespit önleme)
+        if (player.isInsideVehicle()) return;
 
         PlayerData data = playerDataMap.get(player.getUniqueId());
         if (data == null) return;
@@ -117,12 +120,17 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         Location from = event.getFrom();
         Location to = event.getTo();
 
+        // Sadece koordinat değiştiyse kontrol et (Sadece bakış yönü değiştiyse atla)
+        if (from.getX() == to.getX() && from.getY() == to.getY() && from.getZ() == to.getZ()) return;
+
         double deltaX = to.getX() - from.getX();
         double deltaZ = to.getZ() - from.getZ();
         double horizontalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
         double deltaY = to.getY() - from.getY();
 
-        // Elytra Hız Kontrolü
+        boolean isOnGround = player.getLocation().getBlock().getRelative(0, -1, 0).getType().isSolid() || player.isOnGround();
+
+        // 1. ELYTRA KONTROLÜ (Sadece gerçekten süzülüyorsa çalışır)
         if (player.isGliding() && getConfig().getBoolean("checks.elytra.enabled", true)) {
             double maxElytraSpeed = getConfig().getDouble("checks.elytra.max-speed", 1.8);
             if (horizontalDistance > maxElytraSpeed) {
@@ -132,32 +140,48 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
             }
         }
 
-        // Normal Speed Kontrolü
-        if (!player.isGliding() && getConfig().getBoolean("checks.speed.enabled", true)) {
-            double threshold = getConfig().getDouble("checks.speed.threshold", 0.75);
-            if (horizontalDistance > threshold && !player.isFlying()) {
-                data.addFlag();
-                triggerAlert(player, "Speed", "Hiz: " + String.format("%.2f", horizontalDistance));
-                if (getConfig().getBoolean("checks.speed.rubberband", true) && data.getFlags() > getConfig().getInt("checks.speed.max-violations", 8)) {
-                    event.setTo(from);
+        // Oyuncu normal yürüyorken Elytra kontrolüne girmemesi için ayırma yapıldı
+        if (!player.isGliding()) {
+            
+            // 2. SPEED KONTROLÜ (Limit toleransı artırıldı, depar ve lag hesaba katıldı)
+            if (getConfig().getBoolean("checks.speed.enabled", true)) {
+                double maxNormalSpeed = isOnGround ? 0.85 : 0.95; // Yerde ve havada farklı limitler
+                
+                if (horizontalDistance > maxNormalSpeed) {
+                    data.addFlag();
+                    triggerAlert(player, "Speed", "Hiz: " + String.format("%.2f", horizontalDistance));
+                    
+                    if (getConfig().getBoolean("checks.speed.rubberband", true) && data.getFlags() > getConfig().getInt("checks.speed.max-violations", 8)) {
+                        event.setTo(from);
+                        data.resetFlags(); // Geri attıktan sonra flag sıfırlanmalı ki döngüye girmesin
+                        return;
+                    }
                 }
             }
-        }
 
-        // Fly Kontrolü
-        if (getConfig().getBoolean("checks.fly.enabled", true) && !player.isGliding()) {
-            if (!player.getLocation().getBlock().getType().isSolid() && !player.getEyeLocation().getBlock().getType().isSolid()) {
-                if (deltaY == 0.0 && horizontalDistance > 0.1) {
+            // 3. FLY KONTROLÜ (Blok üzerinden düşerken veya zıplarken tetiklenmesi önlendi)
+            if (getConfig().getBoolean("checks.fly.enabled", true) && !isOnGround) {
+                // Oyuncu havada dikeyde hareket etmiyor ama yatayda hızlı gidiyorsa (Havada yürüme/süzülme)
+                if (Math.abs(deltaY) < 0.005 && horizontalDistance > 0.25) {
                     data.addFlag();
-                    triggerAlert(player, "Fly", "Havada Sabit Suzulme");
+                    triggerAlert(player, "Fly", "Havada Suzulme");
+                    
                     if (getConfig().getBoolean("checks.fly.rubberband", true) && data.getFlags() > getConfig().getInt("checks.fly.max-violations", 5)) {
                         event.setTo(from);
+                        data.resetFlags();
+                        return;
                     }
                 }
             }
         }
+        
+        // Eğer her şey temizse violation değerini yavaşça düşür (Doğal azalma)
+        if (data.getFlags() > 0 && Math.random() < 0.1) {
+            data.decreaseFlag();
+        }
     }
 
+    // 4. KONTROL: NUKER KORUMASI
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         if (!getConfig().getBoolean("checks.nuker.enabled", true)) return;
@@ -174,7 +198,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
             int maxBreaks = getConfig().getInt("checks.nuker.max-breaks-per-sec", 15);
             if (data.blockBreaksInSecond > maxBreaks) {
                 event.setCancelled(true);
-                triggerAlert(player, "Nuker", "Saniyede " + data.blockBreaksInSecond + " blok kirdi!");
+                triggerAlert(player, "Nuker", "Saniyede " + data.blockBreaksInSecond + " blok!");
             }
         } else {
             data.lastBlockBreakTime = now;
@@ -182,7 +206,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         }
     }
 
-    // --- PAKET TABANLI KONTROLLER ---
+    // --- PAKET TABANLI SAVAŞ KONTROLLERİ ---
     private void registerPacketChecks() {
         // Killaura, Reach & Hitbox Kontrolü
         protocolManager.addPacketListener(
@@ -202,7 +226,6 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                         data.setLastAttackTime(now);
                     }
 
-                    // Hata veren yer düzeltildi: getEntityModifier kullanıldı
                     try {
                         Entity target = event.getPacket().getEntityModifier(event.getPlayer().getWorld()).read(0);
                         if (target instanceof Player) {
@@ -213,7 +236,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                                 double distance = player.getLocation().distance(victim.getLocation());
                                 double maxReach = getConfig().getDouble("checks.reach.max-distance", 3.4);
                                 if (distance > maxReach) {
-                                    triggerAlert(player, "Reach", "Mesafe: " + String.format("%.2f", distance) + " blok");
+                                    triggerAlert(player, "Reach", "Mesafe: " + String.format("%.2f", distance));
                                 }
                             }
 
@@ -225,7 +248,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                                 
                                 double maxAngle = getConfig().getDouble("checks.hitbox.max-angle", 110.0);
                                 if (angle > maxAngle) {
-                                    triggerAlert(player, "Hitbox / Rotation", "Aci Sapmasi: " + String.format("%.1f", angle) + " derece");
+                                    triggerAlert(player, "Hitbox / Rotation", "Aci Sapmasi: " + String.format("%.1f", angle));
                                 }
                             }
                         }
@@ -234,7 +257,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
             }
         );
 
-        // Hata veren yer düzeltildi: PacketType.Play.Client.LOOK kullanıldı
+        // Killaura Anormal Rotasyon Kontrolü
         protocolManager.addPacketListener(
             new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Client.LOOK) {
                 @Override
@@ -251,8 +274,8 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
                     float deltaYaw = Math.abs(yaw - data.lastYaw);
                     float deltaPitch = Math.abs(pitch - data.lastPitch);
 
-                    if (deltaYaw > 280.0F && deltaPitch > 120.0F) {
-                        triggerAlert(player, "Aura Rotation", "Imkansiz Donus: Yaw " + (int)deltaYaw);
+                    if (deltaYaw > 300.0F && deltaPitch > 140.0F) {
+                        triggerAlert(player, "Aura Rotation", "Donus: " + (int)deltaYaw);
                     }
 
                     data.lastYaw = yaw;
@@ -297,6 +320,7 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
 
     public static LAnticheat getInstance() { return instance; }
 
+    // --- GELİŞTİRİLMİŞ VERİ SAKLAMA YAPISI ---
     public static class PlayerData {
         private final Player player;
         private int violationFlags = 0;
@@ -311,8 +335,12 @@ public class LAnticheat extends JavaPlugin implements Listener, CommandExecutor 
         public PlayerData(Player player) { this.player = player; }
         public Player getPlayer() { return player; }
         public int getFlags() { return violationFlags; }
-        public void addFlag() { this.violationFlags++; }
+        public void addFlag() { this.violationFlags += 2; }
+        public void decreaseFlag() { if (this.violationFlags > 0) this.violationFlags--; }
+        public void resetFlags() { this.violationFlags = 0; }
+        
         public long getLastAttackTime() { return lastAttackTime; }
         public void setLastAttackTime(long lastAttackTime) { this.lastAttackTime = lastAttackTime; }
     }
-}
+                              }
+                
