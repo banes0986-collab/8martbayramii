@@ -1,4 +1,4 @@
-package com.legacy.salxaet;
+package com.legacy.salxaet.src.main.java.com.legacy.salxaet;
 
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
