@@ -1,6 +1,55 @@
-Messages:
-  prefix: "&e[&bSalxAET&e] "
-  no-permission: "&cBu komutu kullanmak için yetkiniz yok!"
-  reload-success: "&aKonfigürasyon ve mesaj dosyaları başarıyla yenilendi!"
-  alert-format: "&c%player% &7isimli oyuncu hile şüphesi taşıyor! &8(&e%type% &7- Mesafe: &b%distance%&8)"
-  
+On-ek: "&#8B5CF6ʟAɴᴛɪCʜᴇAᴛ &#6D28D9» &r"
+
+komutlar:
+  yetki-yok: "&8[&c✗&8] &cBu komut için yetkiniz bulunmuyor."
+  aktif: "&8[&a✔&8] &alAnticheat koruma sistemi &fdevreye alındı&a."
+  devre-disi: "&8[&c✘&8] &clAnticheat koruma sistemi &fdevre dışı bırakıldı&c."
+  yenilendi: "&8[&e↺&8] &elAnticheat yapılandırması &fbaşarıyla yenilendi&e."
+
+  bypass-acik: "&8[&b⬡&8] &f%oyuncu% &7artık &atakip edilmiyor &7(bypass açık)."
+  bypass-kapali: "&8[&b⬡&8] &f%oyuncu% &7tekrar &ctakip kapsamına alındı&7."
+
+  oyuncu-bulunamadi: "&8[&c!&8] &c%oyuncu% &7adlı oyuncu çevrimiçi değil."
+  veri-yok: "&8[&7~&8] &7%oyuncu% için henüz log verisi bulunmuyor."
+
+  info-format: |
+    &#8B5CF6┌── &f%oyuncu% &7— Tespit Raporu
+    &#8B5CF6│  &7Log Sayısı    &f%log%
+    &#8B5CF6│  &7Uyarıldı      &f%uyarildi%
+    &#8B5CF6│  &7Donduruldu    &f%donduruldu%
+    &#8B5CF6│  &7Bypass        &f%bypass%
+    &#8B5CF6└─────────────────────────────
+
+  bypass-liste-bos: "&8[&7~&8] &7Bypass listesi şu an boş."
+  bypass-liste-baslik: "&#8B5CF6── &fBypass Listesi ──"
+  bypass-liste-satir:  " &8» &f%oyuncu%"
+
+  sifirla-basarili: "&8[&a↺&8] &f%oyuncu% &7adlı oyuncunun log sayacı sıfırlandı."
+
+  durum-format: |
+    &#8B5CF6┌── &fSistem Durumu
+    &#8B5CF6│  &7Koruma    %durum%
+    &#8B5CF6│  &7Çevrimiçi &f%online% oyuncu
+    &#8B5CF6│  &7Flag'lı   &c%flagged% oyuncu
+    &#8B5CF6└─────────────────────────────
+
+  kullanim: |
+    &#8B5CF6Kullanım: &f/lanticheat &8<
+    &7  ac &8| &7kapat &8| &7yenile
+    &7  bypass &8<&foyuncu&8>
+    &7  info &8<&foyuncu&8>
+    &7  liste &8| &7sifirla &8<&foyuncu&8> &8| &7durum
+    &#8B5CF6>
+
+uyarilar:
+  log-formati: "&f%saldirgan% &8▸ &e%kontrol% &8| &7%mesafe%m &8· &7%aci%° &8· &cduvar:%duvar% &8· &cx%log%"
+
+  ekran-baslik: "&#FF4444⚠ ŞÜPHELİ DAVRANIŞ"
+  ekran-alt: "&#AAAAAA Davranışın izleniyor, %oyuncu%."
+
+  donduruldu-baslik: "&#8B5CF6✦ DONDURULDU"
+  donduruldu-alt: "&#AAAAAA Yönetici kontrolü bekleniyor..."
+
+sistem:
+  baslatildi: "&#00E5A0lAnticheat aktif — LegacyNetwork koruması devrede."
+  kapatildi: "&#FF4444lAnticheat kapatıldı."
