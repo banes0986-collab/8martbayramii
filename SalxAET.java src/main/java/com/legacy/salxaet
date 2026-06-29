@@ -1,18 +1,88 @@
 package com.legacy.salxaet;
 
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class LAnticheat extends JavaPlugin {
+import java.util.HashMap;
+import java.util.UUID;
+
+public class LAnticheat extends JavaPlugin implements Listener {
+
+    private static LAnticheat instance;
+    private ProtocolManager protocolManager;
+    
+    // Her oyuncunun verilerini ramde izlemek için gelişmiş map sistemi
+    private final HashMap<UUID, PlayerData> playerDataMap = new HashMap<>();
 
     @Override
     public void onEnable() {
-        // Sunucu acildiginda konsola verilecek mesaj
-        getLogger().info("SalxAET Aktif Edildi! - LegacyNetwork");
+        instance = this;
+        this.protocolManager = ProtocolLibrary.getProtocolManager();
+        
+        // Eventleri ve Dinleyicileri Kaydet
+        getServer().getPluginManager().registerEvents(this, this);
+        
+        // İleride ekleyeceğimiz paket dinleyicilerini burada başlatacağız
+        registerPacketListeners();
+
+        getLogger().info("========================================");
+        getLogger().info("SalxAET v1.0 - Gelişmiş Paket Altyapısı Aktif!");
+        getLogger().info("LegacyNetwork için özel olarak optimize edildi.");
+        getLogger().info("========================================");
     }
 
     @Override
     public void onDisable() {
-        // Sunucu kapandiginda veya eklenti reload yediginde verilecek mesaj
+        playerDataMap.clear();
         getLogger().info("SalxAET Devre Disi Birakildi!");
+    }
+
+    private void registerPacketListeners() {
+        // Üst düzey hile kontrolleri için ProtocolLib dinleyicileri buraya yazılacak
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        playerDataMap.put(player.getUniqueId(), new PlayerData(player));
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        playerDataMap.remove(event.getPlayer().getUniqueId());
+    }
+
+    public static LAnticheat getInstance() {
+        return instance;
+    }
+
+    public HashMap<UUID, PlayerData> getPlayerDataMap() {
+        return playerDataMap;
+    }
+
+    // Oyuncu verilerini anlık analiz etmek için iç içe geçmiş (Nested) Sınıf Yapısı
+    public static class PlayerData {
+        private final Player player;
+        private int violationFlags = 0;
+        private long lastAttackTime = 0;
+        private double lastX = 0, lastY = 0, lastZ = 0;
+
+        public PlayerData(Player player) {
+            this.player = player;
+        }
+
+        public Player getPlayer() { return player; }
+        public int getFlags() { return violationFlags; }
+        public void addFlag() { this.violationFlags++; }
+        
+        public long getLastAttackTime() { return lastAttackTime; }
+        public void setLastAttackTime(long lastAttackTime) { this.lastAttackTime = lastAttackTime; }
     }
 }
