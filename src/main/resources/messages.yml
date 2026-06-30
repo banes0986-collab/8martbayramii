@@ -1,5 +1,5 @@
 prefix: "&8[&dSalxAET&8] "
-alert-format: "&f%player% &7adlı oyuncu &e%check% &7şüphesi fırlattı! &8(%details%)"
+alert-format: "&f%player% &7-> &e%check% &8| &7%details%"
 
 commands:
   no-permission: "&cYetkiniz yok!"
@@ -10,4 +10,4 @@ commands:
   reloaded: "&aAyarlar yenilendi!"
 
 kick:
-  reason: "&c&l[SalxAET]\n\n&7Sunucudan uzaklaştırıldınız!\n&bSebep: &eHile Kullanımı"
+  reason: "&c&l[SalxAET]\n\n&7Hile tespit edildi!\n&bSebep: &eHile Kullanımı"
