@@ -8,24 +8,75 @@ checks:
     threshold: 0.96
     max-violations: 8
     rubberband: true
+
   fly:
     enabled: true
     max-violations: 5
     rubberband: true
+
   noweb:
     enabled: true
+
   killaura:
     enabled: true
     min-ms-delay: 40
     check-rotation: true
+
   antiwall:
     enabled: true
+
   reach:
     enabled: true
     max-distance: 3.5
+
   hitbox:
     enabled: true
     max-angle: 115.0
+
   elytra:
     enabled: true
     max-speed: 2.2
+
+kontroller:
+
+  KillAuraA:
+    aktif: true
+    maksimum-mesafe: 3.4
+    ping-toleransi: 0.05
+
+  KillAuraB:
+    aktif: true
+    min-mesafe: 0.0
+    snap-acisi: 65.0
+
+  KillAuraC:
+    aktif: true
+
+  KillAuraD:
+    aktif: true
+    min-mesafe: 0.5
+    maksimum-aci: 90.0
+
+  KillAuraF:
+    aktif: true
+    maksimum-aci: 40.0
+    maksimum-mesafe: 3.0
+
+  KillAuraG:
+    aktif: true
+    maksimum-aci: 100.0
+    min-mesafe: 0.3
+
+  AutoClickCheck:
+    aktif: true
+    maksimum-cps: 16
+
+  MultiTargetCheck:
+    aktif: true
+    pencere-saniye: 2
+    maksimum-hedef: 3
+
+  RotationCheck:
+    aktif: true
+    ornek-sayisi: 20
+    dusuk-sd-esigi: 0.15
