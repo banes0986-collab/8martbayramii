@@ -6,6 +6,8 @@ import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
+import com.legacy.salxaet.checks.*;
+import com.legacy.salxaet.manager.PlayerDataManager;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -21,6 +23,8 @@ public class LAnticheat extends JavaPlugin {
 
     public static LAnticheat instance;
     public HashMap<UUID, PlayerData> playerDataMap = new HashMap<>();
+    public PlayerDataManager dataManager = new PlayerDataManager();
+
     private ProtocolManager protocolManager;
     private boolean isAnticheatEnabled = true;
 
@@ -63,7 +67,16 @@ public class LAnticheat extends JavaPlugin {
             }
         }, 200L, 200L);
 
-        getLogger().info("SalxAET v2.0 aktif!");
+        // Her tik rotasyon geçmişini ve hitbox geçmişini kaydet
+        Bukkit.getScheduler().runTaskTimer(this, () -> {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                dataManager.recordYaw(p.getUniqueId(), p.getLocation().getYaw());
+                dataManager.recordPitch(p.getUniqueId(), p.getLocation().getPitch());
+                dataManager.recordBoundingBox(p.getUniqueId(), p.getBoundingBox(), p.getLocation());
+            }
+        }, 1L, 1L);
+
+        getLogger().info("SalxAET v3.0 aktif! (StalkerAura KillAura modulleri entegre)");
     }
 
     @Override
@@ -120,7 +133,7 @@ public class LAnticheat extends JavaPlugin {
             }
         });
 
-        // USE_ENTITY → KillAura CPS + Reach + Hitbox
+        // USE_ENTITY → Tüm KillAura modülleri + Reach + Hitbox + AutoClick + MultiTarget
         protocolManager.addPacketListener(new PacketAdapter(
                 this, ListenerPriority.NORMAL, PacketType.Play.Client.USE_ENTITY) {
             @Override
@@ -132,61 +145,70 @@ public class LAnticheat extends JavaPlugin {
                 if (player.hasPermission("salxaet.bypass") || player.isOp()) return;
 
                 try {
-                    // 1.21'de action integer olarak gelir: 1 = ATTACK
                     int actionId = event.getPacket().getIntegers().read(1);
                     if (actionId != 1) return; // Sadece ATTACK
 
-                    // ── KillAura CPS ──────────────────────────────────────
+                    Entity target = event.getPacket()
+                            .getEntityModifier(player.getWorld()).read(0);
+                    if (target == null) return;
+
+                    // ── Eski KillAura (CPS bazlı, basit) ────────────────────
                     if (getConfig().getBoolean("checks.killaura.enabled", true)) {
                         long now = System.currentTimeMillis();
                         long delay = now - data.getLastAttackTime();
                         int minDelay = getConfig().getInt("checks.killaura.min-ms-delay", 40);
-
                         if (data.getLastAttackTime() != 0 && delay < minDelay) {
                             triggerAlert(player, "KillAura", "CPS delay=" + delay + "ms < " + minDelay + "ms");
                         }
                         data.setLastAttackTime(now);
                     }
 
-                    // ── Reach ─────────────────────────────────────────────
+                    // ── Reach ────────────────────────────────────────────────
                     if (getConfig().getBoolean("checks.reach.enabled", true)) {
-                        Entity target = event.getPacket()
-                                .getEntityModifier(player.getWorld()).read(0);
-                        if (target != null) {
-                            double dist = player.getLocation().distance(target.getLocation());
-                            double maxDist = getConfig().getDouble("checks.reach.max-distance", 3.5);
-                            if (player.isGliding()) maxDist += 1.5;
-
-                            if (dist > maxDist) {
-                                event.setCancelled(true);
-                                triggerAlert(player, "Reach",
-                                        String.format("%.2f > %.2f blok", dist, maxDist));
-                            }
+                        double dist = player.getLocation().distance(target.getLocation());
+                        double maxDist = getConfig().getDouble("checks.reach.max-distance", 3.5);
+                        if (player.isGliding()) maxDist += 1.5;
+                        if (dist > maxDist) {
+                            event.setCancelled(true);
+                            triggerAlert(player, "Reach", String.format("%.2f > %.2f blok", dist, maxDist));
                         }
                     }
 
-                    // ── Hitbox açı ────────────────────────────────────────
+                    // ── Hitbox açı ────────────────────────────────────────────
                     if (getConfig().getBoolean("checks.hitbox.enabled", true)) {
-                        Entity target = event.getPacket()
-                                .getEntityModifier(player.getWorld()).read(0);
-                        if (target != null) {
-                            double angle = getAngleBetween(player, target);
-                            double maxAngle = getConfig().getDouble("checks.hitbox.max-angle", 115.0);
-                            if (angle > maxAngle) {
-                                event.setCancelled(true);
-                                triggerAlert(player, "Hitbox",
-                                        String.format("aci=%.1f derece", angle));
-                            }
+                        double angle = getAngleBetween(player, target);
+                        double maxAngle = getConfig().getDouble("checks.hitbox.max-angle", 115.0);
+                        if (angle > maxAngle) {
+                            event.setCancelled(true);
+                            triggerAlert(player, "Hitbox", String.format("aci=%.1f derece", angle));
                         }
                     }
+
+                    // ── StalkerAura KillAura modülleri (A,C,D,F,G) ───────────
+                    KillAuraA.check(LAnticheat.this, player, target);
+                    KillAuraC.check(LAnticheat.this, player, target);
+                    KillAuraD.check(LAnticheat.this, player, target, dataManager);
+                    KillAuraF.check(LAnticheat.this, player, target);
+                    KillAuraG.check(LAnticheat.this, player, target, dataManager);
+
+                    // ── AutoClick ─────────────────────────────────────────────
+                    AutoClickCheck.check(LAnticheat.this, player, dataManager);
+
+                    // ── MultiTarget ───────────────────────────────────────────
+                    MultiTargetCheck.check(LAnticheat.this, player, target, dataManager);
+
+                    // Saldırı öncesi rotasyonu kaydet (KillAura-D için)
+                    dataManager.setPreAttackRotation(player.getUniqueId(),
+                            player.getLocation().getYaw(), player.getLocation().getPitch());
 
                 } catch (Exception e) {
                     // Paket parse hatasi - sessizce gec
                 }
             }
+
         });
 
-        // Rotasyon paketi → KillAura aimbot tespiti
+        // Rotasyon paketi → eski KillAura-B (rotation snap) + RotationCheck (variance)
         protocolManager.addPacketListener(new PacketAdapter(
                 this, ListenerPriority.NORMAL,
                 PacketType.Play.Client.LOOK,
@@ -194,7 +216,6 @@ public class LAnticheat extends JavaPlugin {
             @Override
             public void onPacketReceiving(PacketEvent event) {
                 if (!isAnticheatEnabled) return;
-                if (!getConfig().getBoolean("checks.killaura.check-rotation", true)) return;
 
                 Player player = event.getPlayer();
                 PlayerData data = playerDataMap.get(player.getUniqueId());
@@ -205,18 +226,26 @@ public class LAnticheat extends JavaPlugin {
                     float yaw   = event.getPacket().getFloat().read(0);
                     float pitch = event.getPacket().getFloat().read(1);
 
-                    float deltaYaw = Math.abs(yaw - data.lastYaw);
-
-                    // Ani büyük tam sayı dönüş → aimbot işareti
-                    if (deltaYaw > 45f && deltaYaw < 180f) {
-                        if (yaw % 1.0f == 0.0f && pitch % 1.0f == 0.0f) {
-                            triggerAlert(player, "KillAura",
-                                    String.format("Rotation snap: yaw=%.1f pitch=%.1f", yaw, pitch));
+                    // Eski basit rotation-snap kontrolü
+                    if (getConfig().getBoolean("checks.killaura.check-rotation", true)) {
+                        float deltaYaw = Math.abs(yaw - data.lastYaw);
+                        if (deltaYaw > 45f && deltaYaw < 180f) {
+                            if (yaw % 1.0f == 0.0f && pitch % 1.0f == 0.0f) {
+                                triggerAlert(player, "KillAura",
+                                        String.format("Rotation snap: yaw=%.1f pitch=%.1f", yaw, pitch));
+                            }
                         }
                     }
 
                     data.lastYaw   = yaw;
                     data.lastPitch = pitch;
+
+                    // KillAura-B (geçmiş tabanlı snap)
+                    KillAuraB.check(LAnticheat.this, player, dataManager);
+
+                    // RotationCheck (düşük varyans = robotik)
+                    RotationCheck.check(LAnticheat.this, player, dataManager);
+
                 } catch (Exception ignored) {}
             }
         });
@@ -305,4 +334,4 @@ public class LAnticheat extends JavaPlugin {
         public long getLastAttackTime()        { return lastAttackTime; }
         public void setLastAttackTime(long t)  { lastAttackTime = t; }
     }
-}
+                                                               }
