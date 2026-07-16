@@ -1,21 +1,22 @@
-name: SalxAET
-version: 3.0
-main: com.legacy.salxaet.LAnticheat
+name: BalikAC
+version: '${project.version}'
+main: com.balikac.anticheat.BalikAC
 api-version: '1.21'
-author: LegacyNetwork
-description: LegacyNetwork Özel AntiCheat
-depend: [ProtocolLib]
-
-permissions:
-  salxaet.admin:
-    description: SalxAET yönetici yetkisi
-    default: op
-  salxaet.bypass:
-    description: AntiCheat bypass
-    default: false
+author: Balik
+description: Basit ama etkili anti-cheat eklentisi (KillAura, AutoTotem, CrystalAura, Xray tespiti)
 
 commands:
-  salxaet:
-    description: SalxAET ana komutu
-    permission: salxaet.admin
-    usage: /<command> <reload|enable|disable>
+  balikac:
+    description: BalikAC yönetim komutu
+    usage: /balikac <reload|alerts|check>
+    permission: balikac.admin
+    aliases: [bac]
+
+permissions:
+  balikac.admin:
+    description: BalikAC yönetim komutlarına erişim
+    default: op
+  balikac.alerts:
+    description: Hile uyarılarını (alert) görme yetkisi
+    default: op
+    
