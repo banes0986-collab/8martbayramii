@@ -7,19 +7,34 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffectType;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class MovementCheck {
 
     private final LAnticheat plugin;
+
+    // PlayerData sınıfındaki eksik metotlara bağımlı kalmamak için lokal veriler
+    private final Map<UUID, Long> lastMoveTimes = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> speedViolations = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> noSlowViolations = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> flyViolations = new ConcurrentHashMap<>();
 
     public MovementCheck(LAnticheat plugin) {
         this.plugin = plugin;
     }
 
-    public void process(Player player, Location from, Location to, PlayerData data) {
+    /**
+     * MovementListener tarafından çağrılan ana hareket kontrol metodu.
+     */
+    public void onMove(Player player, Location from, Location to, PlayerData data) {
         // Yaratıcı, İzleyici modunda, uçuşta veya binek üzerinde olan oyuncuları atla
         if (player.getAllowFlight() || player.isFlying() || player.isInsideVehicle()) {
             return;
         }
+
+        UUID uuid = player.getUniqueId();
 
         // Yatay (XZ) ve Dikey (Y) mesafe değişimleri
         double deltaX = to.getX() - from.getX();
@@ -29,8 +44,8 @@ public class MovementCheck {
 
         // Zaman farkı hesabı (Blok / Saniye - BPS)
         long currentTime = System.currentTimeMillis();
-        long lastTime = data.getLastMoveTime();
-        data.setLastMoveTime(currentTime);
+        long lastTime = lastMoveTimes.getOrDefault(uuid, 0L);
+        lastMoveTimes.put(uuid, currentTime);
 
         if (lastTime == 0) {
             return;
@@ -43,9 +58,8 @@ public class MovementCheck {
             return;
         }
 
-        // BPS Hesaplama: $BPS = \frac{\Delta XZ}{\Delta t}$
+        // BPS Hesaplama
         double blocksPerSecond = (deltaXZ / (timeDiff / 1000.0));
-
         var config = plugin.getConfig();
 
         // =========================================================================
@@ -60,30 +74,32 @@ public class MovementCheck {
                 maxBps *= (1.0 + (0.20 * amp));
             }
 
-            // Buz Yüzey Kontrolü (Ekstra Tolerans)
+            // Buz Yüzey Kontrolü
             Material blockBelow = from.clone().subtract(0, 0.5, 0).getBlock().getType();
             if (blockBelow.name().contains("ICE")) {
                 maxBps *= 1.40;
             }
 
-            // İhlal Algılama
             if (blocksPerSecond > maxBps) {
-                data.incrementSpeedViolations();
+                int currentVL = speedViolations.getOrDefault(uuid, 0) + 1;
+                speedViolations.put(uuid, currentVL);
                 int maxViolations = config.getInt("checks.speed.max-violations", 8);
 
                 if (config.getBoolean("settings.debug", false)) {
                     plugin.getLogger().info(String.format("[DEBUG Speed] %s: BPS=%.2f, Max=%.2f, VL=%d",
-                            player.getName(), blocksPerSecond, maxBps, data.getSpeedViolations()));
+                            player.getName(), blocksPerSecond, maxBps, currentVL));
                 }
 
-                plugin.getAlertManager().sendAlert(player, "Speed", data.getSpeedViolations(), maxViolations);
+                plugin.getAlertManager().sendAlert(player, "Speed", currentVL, maxViolations);
 
                 if (config.getBoolean("checks.speed.rubberband", true)) {
                     player.teleport(from);
                 }
             } else {
-                // Zamanla ihlal puanını düşür (Decay)
-                data.decaySpeedViolations();
+                int currentVL = speedViolations.getOrDefault(uuid, 0);
+                if (currentVL > 0) {
+                    speedViolations.put(uuid, currentVL - 1);
+                }
             }
         }
 
@@ -93,74 +109,82 @@ public class MovementCheck {
         if (config.getBoolean("checks.noslow.enabled", true) && player.isHandRaised()) {
             double maxNoSlowBps = config.getDouble("checks.noslow.max-blocks-per-second-while-blocking", 3.8);
 
-            // Speed iksiri bonusunu NoSlow'a da yansıt
             if (player.hasPotionEffect(PotionEffectType.SPEED)) {
                 int amp = player.getPotionEffect(PotionEffectType.SPEED).getAmplifier() + 1;
                 maxNoSlowBps *= (1.0 + (0.20 * amp));
             }
 
             if (blocksPerSecond > maxNoSlowBps) {
-                data.incrementNoSlowViolations();
+                int currentVL = noSlowViolations.getOrDefault(uuid, 0) + 1;
+                noSlowViolations.put(uuid, currentVL);
                 int maxViolations = config.getInt("checks.noslow.max-violations", 5);
 
-                plugin.getAlertManager().sendAlert(player, "NoSlow", data.getNoSlowViolations(), maxViolations);
+                plugin.getAlertManager().sendAlert(player, "NoSlow", currentVL, maxViolations);
 
                 if (config.getBoolean("checks.noslow.rubberband", true)) {
                     player.teleport(from);
                 }
             } else {
-                data.decayNoSlowViolations();
+                int currentVL = noSlowViolations.getOrDefault(uuid, 0);
+                if (currentVL > 0) {
+                    noSlowViolations.put(uuid, currentVL - 1);
+                }
             }
         }
 
         // =========================================================================
-        // 3. FLY CHECK (Dikey Y-Aksı ve Havada Kalma Kontrolü)
+        // 3. FLY CHECK (Dikey Y-Aksı Kontrolü)
         // =========================================================================
         if (config.getBoolean("checks.fly.enabled", true)) {
             boolean nearGround = isNearGround(to) || isNearGround(from);
 
             if (!nearGround) {
-                // Zıplama anındaki maksimum yasal dikey ivme ($v_y \approx 0.42$)
                 double maxAscent = 0.55;
 
-                // Jump Boost İksiri Kontrolü
-                if (player.hasPotionEffect(PotionEffectType.JUMP)) {
-                    int amp = player.getPotionEffect(PotionEffectType.JUMP).getAmplifier() + 1;
+                // Sürüm uyumluluğu için Jump Boost kontrolü
+                PotionEffectType jumpType = PotionEffectType.getByName("JUMP_BOOST");
+                if (jumpType == null) {
+                    jumpType = PotionEffectType.getByName("JUMP");
+                }
+
+                if (jumpType != null && player.hasPotionEffect(jumpType)) {
+                    int amp = player.getPotionEffect(jumpType).getAmplifier() + 1;
                     maxAscent += (amp * 0.15);
                 }
 
-                // Eğer oyuncu zeminde değilse ve yukarı doğru normal sınırların üstünde yükseliyorsa
                 if (deltaY > maxAscent) {
-                    data.incrementFlyViolations();
+                    int currentVL = flyViolations.getOrDefault(uuid, 0) + 1;
+                    flyViolations.put(uuid, currentVL);
                     int maxViolations = config.getInt("checks.fly.max-violations", 5);
 
                     if (config.getBoolean("settings.debug", false)) {
                         plugin.getLogger().info(String.format("[DEBUG Fly] %s: DeltaY=%.2f, Max=%.2f, VL=%d",
-                                player.getName(), deltaY, maxAscent, data.getFlyViolations()));
+                                player.getName(), deltaY, maxAscent, currentVL));
                     }
 
-                    plugin.getAlertManager().sendAlert(player, "Fly", data.getFlyViolations(), maxViolations);
+                    plugin.getAlertManager().sendAlert(player, "Fly", currentVL, maxViolations);
 
                     if (config.getBoolean("checks.fly.rubberband", true)) {
                         player.teleport(from);
                     }
                 }
             } else {
-                data.decayFlyViolations();
+                int currentVL = flyViolations.getOrDefault(uuid, 0);
+                if (currentVL > 0) {
+                    flyViolations.put(uuid, currentVL - 1);
+                }
             }
         }
     }
 
     /**
-     * Oyuncunun etrafındaki blokları kontrol ederek yarım blok (slab), merdiven
-     * veya zıplama anlarında zemin tespiti toleransı sağlar.
+     * Oyuncunun etrafındaki blokları kontrol ederek zemin toleransı sağlar.
      */
     private boolean isNearGround(Location loc) {
         if (loc.getBlock().getType().isSolid()) {
             return true;
         }
 
-        // Oyuncunun hit-box sınırları içerisinde alt blok kontrolü (-0.5 Y offset)
         for (double x = -0.3; x <= 0.3; x += 0.3) {
             for (double z = -0.3; z <= 0.3; z += 0.3) {
                 Location checkLoc = loc.clone().add(x, -0.5, z);
