@@ -1,0 +1,17 @@
+prefix: "&8[&dSalxAET&8] "
+alert-format: "&f%player% &7-> &e%check% &8| &7%details% &8(&c%violations%&8)"
+
+commands:
+  no-permission: "&cYetkiniz yok!"
+  already-active: "&eSalxAET zaten aktif!"
+  activated: "&aHile korumasi devreye alindi!"
+  already-disabled: "&eSalxAET zaten devre disi!"
+  disabled: "&cHile korumasi kapatildi!"
+  reloaded: "&aAyarlar yenilendi!"
+  debug-on: "&aDebug modu acildi."
+  debug-off: "&cDebug modu kapatildi."
+  status: "&7SalxAET durum: %status% &7| Debug: %debug%"
+  unknown-command: "&cKullanim: /salxaet <reload|enable|disable|status|debug>"
+
+kick:
+  reason: "&c&l[SalxAET]\n\n&7Hile tespit edildi!\n&bSebep: &e%check%"
