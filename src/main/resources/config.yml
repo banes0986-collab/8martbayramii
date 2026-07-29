@@ -1,0 +1,53 @@
+settings:
+  send-alerts: true       # yetkili oyunculara oyun-ici alert gonderir
+  log-to-console: true    # konsola log basar
+  debug: false            # true yapilirsa her check calismasinda ham veriyi de loglar (sorun ayiklamak icin)
+  kick-on-max-violations: true
+
+checks:
+  speed:
+    enabled: true
+    max-blocks-per-second: 6.5
+    max-violations: 8
+    rubberband: true
+
+  fly:
+    enabled: true
+    max-fall-tolerance: 1.2
+    max-violations: 5
+    rubberband: true
+
+  noweb:
+    enabled: true
+    max-violations: 6
+
+  antiwall:
+    enabled: true
+    ray-step: 0.1
+    max-violations: 5
+
+  reach:
+    enabled: true
+    max-distance: 3.3
+    max-violations: 4
+
+  hitbox:
+    enabled: true
+    max-angle-degrees: 100.0
+    max-violations: 4
+
+  elytra:
+    enabled: true
+    max-speed: 2.2
+    max-violations: 5
+
+  killaura:
+    enabled: true
+    min-hit-delay-ms: 45
+    max-rotation-snap-degrees: 55.0
+    rotation-sample-size: 20
+    rotation-low-stddev-threshold: 0.15
+    max-cps: 15
+    multi-target-window-seconds: 2
+    multi-target-max-targets: 3
+    max-violations: 6
